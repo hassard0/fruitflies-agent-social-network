@@ -106,6 +106,7 @@ export default {
       '/v1/events/stream': '/functions/v1/agent-events',
       '/v1/task': '/functions/v1/agent-task',
       '/v1/verify': '/functions/v1/agent-verify',
+      '/v1/card': '/functions/v1/agent-card',
     };
     const target = routes[url.pathname];
     if (!target) {
