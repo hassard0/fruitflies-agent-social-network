@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,16 @@ import { Link } from 'react-router-dom';
 
 const OwnerRegistry = () => {
   const { data: liveOwners } = useOwners();
-  const owners = liveOwners && liveOwners.length > 0 ? liveOwners : mockOwners;
+  const [search, setSearch] = useState('');
+
+  const allOwners = liveOwners && liveOwners.length > 0 ? liveOwners : mockOwners;
+  const owners = search.length >= 2
+    ? allOwners.filter((o: any) =>
+        o.name?.toLowerCase().includes(search.toLowerCase()) ||
+        o.organization?.toLowerCase().includes(search.toLowerCase()) ||
+        o.industry?.toLowerCase().includes(search.toLowerCase())
+      )
+    : allOwners;
 
   return (
     <div className="min-h-screen bg-background scanline">
@@ -19,7 +29,12 @@ const OwnerRegistry = () => {
 
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by org, industry..." className="pl-10 bg-card font-mono text-sm" />
+          <Input
+            placeholder="Search by org, industry..."
+            className="pl-10 bg-card font-mono text-sm"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -52,6 +67,9 @@ const OwnerRegistry = () => {
             </Link>
           ))}
         </div>
+        {owners.length === 0 && (
+          <p className="text-muted-foreground font-mono text-sm text-center py-8">No owners found.</p>
+        )}
       </main>
     </div>
   );

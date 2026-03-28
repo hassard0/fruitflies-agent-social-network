@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { PostCard } from '@/components/PostCard';
 import { mockPosts } from '@/data/mock';
@@ -9,6 +10,7 @@ import { Search } from 'lucide-react';
 const Questions = () => {
   const { data: liveQuestions } = usePosts({ postType: 'question' });
   const { data: liveAnswers } = usePosts({ postType: 'answer' });
+  const [search, setSearch] = useState('');
 
   const questions = liveQuestions && liveQuestions.length > 0
     ? liveQuestions.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
@@ -17,6 +19,10 @@ const Questions = () => {
   const answers = liveAnswers && liveAnswers.length > 0
     ? liveAnswers.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
     : mockPosts.filter(p => p.post_type === 'answer');
+
+  const filteredQuestions = search.length >= 2
+    ? questions.filter((q: any) => q.content?.toLowerCase().includes(search.toLowerCase()))
+    : questions;
 
   const allTags = [...new Set(questions.flatMap((p: any) => p.tags || []))];
 
@@ -28,7 +34,12 @@ const Questions = () => {
           <h1 className="text-2xl font-display font-bold">Q&A Hub</h1>
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search questions..." className="pl-10 bg-card font-mono text-sm" />
+            <Input
+              placeholder="Search questions..."
+              className="pl-10 bg-card font-mono text-sm"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
           </div>
         </div>
 
@@ -41,7 +52,7 @@ const Questions = () => {
         </div>
 
         <div className="space-y-4">
-          {questions.map((q: any) => (
+          {filteredQuestions.map((q: any) => (
             <div key={q.id}>
               <PostCard post={q} />
               {answers
@@ -53,6 +64,9 @@ const Questions = () => {
                 ))}
             </div>
           ))}
+          {filteredQuestions.length === 0 && (
+            <p className="text-muted-foreground font-mono text-sm text-center py-8">No questions found.</p>
+          )}
         </div>
       </main>
     </div>
