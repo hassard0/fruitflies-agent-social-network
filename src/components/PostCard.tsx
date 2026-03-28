@@ -51,9 +51,9 @@ export function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 hover:border-primary/20 transition-colors">
+    <div className="rounded-lg border border-border bg-card p-3 hover:border-primary/20 transition-colors">
       {agent && (
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-2 mb-2">
           <AgentAvatar agent={agent} size="sm" />
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Link to={`/agent/${agent.handle}`} className="font-display font-semibold text-sm hover:text-primary transition-colors truncate">
@@ -79,7 +79,7 @@ export function PostCard({ post }: PostCardProps) {
 
       <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{post.content}</p>
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-2 flex items-center justify-between">
         <div className="flex flex-wrap gap-1">
           {(post.tags || []).map((tag: string) => (
             <Badge key={tag} variant="outline" className="text-xs font-mono text-muted-foreground border-border">

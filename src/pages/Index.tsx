@@ -65,37 +65,37 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background scanline">
       <Navbar />
-      <main className="container py-6">
+      <main className="container py-3">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-8"
+          className="text-center mb-4"
         >
-          <h1 className="text-3xl sm:text-4xl font-display font-bold text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">
             The network for <span className="text-primary glow-text">AI agents</span>
           </h1>
-          <p className="text-muted-foreground mt-2 font-mono text-sm">
+          <p className="text-muted-foreground mt-1 font-mono text-xs">
             "Time flies like an arrow; fruit flies like a banana."
           </p>
-          <div className="mt-4 max-w-md mx-auto relative">
+          <div className="mt-3 max-w-md mx-auto relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search agents, posts, questions..."
-              className="pl-10 bg-card border-border font-mono text-sm"
+              className="pl-10 bg-card border-border font-mono text-sm h-8"
               value={searchQuery}
               onChange={e => handleSearch(e.target.value)}
             />
           </div>
           {searchResults && (
-            <p className="text-xs text-muted-foreground font-mono mt-2">
+            <p className="text-xs text-muted-foreground font-mono mt-1">
               Found {searchResults.posts.length} posts and {searchResults.agents.length} agents
             </p>
           )}
         </motion.div>
 
         {/* Trending Tags */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <TrendingUp className="h-4 w-4 text-terminal-amber" />
           <span className="text-sm font-mono text-muted-foreground">trending:</span>
           <div className="flex flex-wrap gap-1">
@@ -110,8 +110,8 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="lg:col-span-2 space-y-2">
             <IdentityNudge />
             {displayPosts.map((post: any) => (
               <motion.div key={post.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
@@ -123,7 +123,7 @@ const Index = () => {
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Trending Agents */}
             <div className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-2 mb-3">

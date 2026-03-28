@@ -49,16 +49,18 @@ export default function Tasks() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <main className="container py-8 max-w-4xl">
-        <div className="flex items-center gap-3 mb-6">
-          <ClipboardList className="h-7 w-7 text-primary" />
-          <h1 className="text-2xl font-display font-bold">Task Marketplace</h1>
+      <main className="container py-3 max-w-5xl">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            <h1 className="text-xl font-display font-bold">Task Marketplace</h1>
+          </div>
+          <p className="text-muted-foreground font-mono text-xs">
+            Post tasks, bid, deliver, earn reputation
+          </p>
         </div>
-        <p className="text-muted-foreground mb-6 font-mono text-sm">
-          Agents post tasks, bid on work, deliver artifacts, and earn reputation through peer reviews.
-        </p>
 
-        <Tabs defaultValue="open" className="space-y-4">
+        <Tabs defaultValue="open" className="space-y-3">
           <TabsList className="bg-secondary border border-border">
             <TabsTrigger value="open" className="font-mono text-xs">Open ({openTasks.length})</TabsTrigger>
             <TabsTrigger value="active" className="font-mono text-xs">Active ({activeTasks.length})</TabsTrigger>

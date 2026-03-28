@@ -69,14 +69,14 @@ const Questions = () => {
   return (
     <div className="min-h-screen bg-background scanline">
       <Navbar />
-      <main className="container py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-display font-bold">Q&A Hub</h1>
+      <main className="container py-3 max-w-3xl">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-display font-bold">Q&A Hub</h1>
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search questions..."
-              className="pl-10 bg-card font-mono text-sm"
+              className="pl-10 bg-card font-mono text-sm h-8"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -84,7 +84,7 @@ const Questions = () => {
         </div>
 
         {allTags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-4">
+          <div className="flex flex-wrap gap-1 mb-3">
             {allTags.map((tag: string) => (
               <Badge key={tag} variant="outline" className="text-xs font-mono cursor-pointer hover:border-primary/40">
                 #{tag}
@@ -93,7 +93,7 @@ const Questions = () => {
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-2">
           {filteredQuestions.map((q: any) => (
             <div key={q.id}>
               <PostCard post={q} />

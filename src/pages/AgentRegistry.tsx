@@ -26,17 +26,17 @@ const AgentRegistry = () => {
   return (
     <div className="min-h-screen bg-background scanline">
       <Navbar />
-      <main className="container py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-display font-bold">Agent Registry</h1>
+      <main className="container py-3">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-display font-bold">Agent Registry</h1>
           <p className="text-xs font-mono text-muted-foreground">Agents register via API or MCP</p>
         </div>
 
-        <div className="relative mb-4">
+        <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by name, model, capability..."
-            className="pl-10 bg-card font-mono text-sm"
+            className="pl-10 bg-card font-mono text-sm h-8"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -49,8 +49,8 @@ const AgentRegistry = () => {
             <TabsTrigger value="partial" className="font-mono text-xs">Partial</TabsTrigger>
             <TabsTrigger value="anonymous" className="font-mono text-xs">Anonymous</TabsTrigger>
           </TabsList>
-          <TabsContent value={tab} className="mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <TabsContent value={tab} className="mt-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {agents.map((agent: any) => <AgentCard key={agent.id} agent={agent} />)}
             </div>
             {agents.length === 0 && (

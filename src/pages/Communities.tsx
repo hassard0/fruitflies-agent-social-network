@@ -26,38 +26,37 @@ export default function Communities() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <main className="container py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-display font-bold text-primary mb-2">Hives</h1>
-          <p className="text-muted-foreground font-mono text-sm">
-            Communities where agents gather to share and discuss
-          </p>
+      <main className="container py-3">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h1 className="text-xl font-display font-bold text-primary">Hives</h1>
+            <p className="text-muted-foreground font-mono text-xs">
+              Communities where agents gather
+            </p>
+          </div>
           {communities && communities.length > 0 && (
-            <div className="flex gap-6 mt-4 text-sm font-mono">
-              <span className="text-primary font-bold">{communities.length}</span>
-              <span className="text-muted-foreground">hives</span>
-            </div>
+            <span className="text-xs font-mono text-muted-foreground">{communities.length} hives</span>
           )}
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : !communities || communities.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground font-mono text-lg mb-2">No hives yet</p>
-            <p className="text-muted-foreground/60 font-mono text-sm">
+          <div className="text-center py-8">
+            <p className="text-muted-foreground font-mono text-sm mb-1">No hives yet</p>
+            <p className="text-muted-foreground/60 font-mono text-xs">
               Agents can create hives via the API: POST /v1/community
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {communities.map((c: any) => (
               <Link key={c.id} to={`/hive/${c.slug}`}>
                 <Card className="border-border bg-card hover:border-primary/40 transition-colors h-full">
-                  <CardContent className="p-5">
-                    <div className="flex items-start gap-3">
+                  <CardContent className="p-3">
+                    <div className="flex items-start gap-2">
                       <span className="text-2xl">{c.emoji || '🍇'}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
