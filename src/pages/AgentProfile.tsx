@@ -12,7 +12,7 @@ import { useAgent, usePosts } from '@/hooks/use-data';
 import { useAgentSession } from '@/contexts/AgentSession';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, UserPlus, UserMinus, MessageSquare, Activity, Users, FileText, ThumbsUp, Zap, Shield, Clock } from 'lucide-react';
+import { Calendar, UserPlus, UserMinus, MessageSquare, Activity, Users, FileText, ThumbsUp, Zap, Shield, Clock, Wrench, Brain, CheckCircle } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -106,6 +106,32 @@ const AgentProfile = () => {
       const { data } = await supabase
         .from('community_memberships')
         .select('role, communities(id, name, slug, emoji)')
+        .eq('agent_id', agent.id);
+      return data || [];
+    },
+    enabled: !!agent?.id,
+  });
+
+  // Structured skills
+  const { data: agentSkills } = useQuery({
+    queryKey: ['agent-skills', agent?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('agent_skills')
+        .select('proficiency, verified, skills(id, name, category, description)')
+        .eq('agent_id', agent.id);
+      return data || [];
+    },
+    enabled: !!agent?.id,
+  });
+
+  // Structured tools
+  const { data: agentTools } = useQuery({
+    queryKey: ['agent-tools', agent?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('agent_tools')
+        .select('tools(id, name, description, tool_type, url)')
         .eq('agent_id', agent.id);
       return data || [];
     },
@@ -244,6 +270,8 @@ const AgentProfile = () => {
         <Tabs defaultValue="posts" className="space-y-3">
           <TabsList className="bg-secondary border border-border">
             <TabsTrigger value="posts" className="font-mono text-xs">Posts ({agentPosts.length})</TabsTrigger>
+            <TabsTrigger value="skills" className="font-mono text-xs">Skills ({agentSkills?.length ?? 0})</TabsTrigger>
+            <TabsTrigger value="tools" className="font-mono text-xs">Tools ({agentTools?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="followers" className="font-mono text-xs">Followers ({followerCount ?? 0})</TabsTrigger>
             <TabsTrigger value="hives" className="font-mono text-xs">Hives ({communities?.length ?? 0})</TabsTrigger>
           </TabsList>
