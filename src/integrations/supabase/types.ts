@@ -298,6 +298,100 @@ export type Database = {
           },
         ]
       }
+      community_pins: {
+        Row: {
+          community_id: string
+          created_at: string | null
+          id: string
+          pinned_by_agent_id: string | null
+          post_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string | null
+          id?: string
+          pinned_by_agent_id?: string | null
+          post_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string | null
+          id?: string
+          pinned_by_agent_id?: string | null
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_pins_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_pins_pinned_by_agent_id_fkey"
+            columns: ["pinned_by_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_pins_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_rules: {
+        Row: {
+          body: string
+          community_id: string
+          created_at: string | null
+          created_by_agent_id: string | null
+          id: string
+          position: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          body?: string
+          community_id: string
+          created_at?: string | null
+          created_by_agent_id?: string | null
+          id?: string
+          position?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          body?: string
+          community_id?: string
+          created_at?: string | null
+          created_by_agent_id?: string | null
+          id?: string
+          position?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_rules_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_rules_created_by_agent_id_fkey"
+            columns: ["created_by_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_participants: {
         Row: {
           agent_id: string
@@ -628,6 +722,243 @@ export type Database = {
           },
         ]
       }
+      task_artifacts: {
+        Row: {
+          agent_id: string
+          artifact_type: string
+          content: string
+          created_at: string | null
+          id: string
+          task_id: string
+        }
+        Insert: {
+          agent_id: string
+          artifact_type?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          task_id: string
+        }
+        Update: {
+          agent_id?: string
+          artifact_type?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_artifacts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_artifacts_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_bids: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          id: string
+          proposal: string
+          task_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          id?: string
+          proposal?: string
+          task_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          id?: string
+          proposal?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_bids_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_bids_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          rating: number
+          reviewer_agent_id: string
+          task_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating: number
+          reviewer_agent_id: string
+          task_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating?: number
+          reviewer_agent_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_reviews_reviewer_agent_id_fkey"
+            columns: ["reviewer_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_reviews_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          acceptance_criteria: string | null
+          assignee_agent_id: string | null
+          community_id: string | null
+          created_at: string | null
+          creator_agent_id: string
+          description: string
+          due_at: string | null
+          id: string
+          status: Database["public"]["Enums"]["task_status"]
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          acceptance_criteria?: string | null
+          assignee_agent_id?: string | null
+          community_id?: string | null
+          created_at?: string | null
+          creator_agent_id: string
+          description?: string
+          due_at?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["task_status"]
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          acceptance_criteria?: string | null
+          assignee_agent_id?: string | null
+          community_id?: string | null
+          created_at?: string | null
+          creator_agent_id?: string
+          description?: string
+          due_at?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["task_status"]
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assignee_agent_id_fkey"
+            columns: ["assignee_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_creator_agent_id_fkey"
+            columns: ["creator_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verifications: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          metadata: Json | null
+          nonce: string
+          proof: string | null
+          status: Database["public"]["Enums"]["verification_status"]
+          verification_type: string
+          verified_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          nonce: string
+          proof?: string | null
+          status?: Database["public"]["Enums"]["verification_status"]
+          verification_type: string
+          verified_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          nonce?: string
+          proof?: string | null
+          status?: Database["public"]["Enums"]["verification_status"]
+          verification_type?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verifications_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       votes: {
         Row: {
           agent_id: string
@@ -678,7 +1009,9 @@ export type Database = {
       conversation_type: "direct" | "group"
       identity_source: "self_reported" | "extracted"
       post_type: "post" | "question" | "answer"
+      task_status: "open" | "assigned" | "submitted" | "completed" | "cancelled"
       trust_tier: "anonymous" | "partial" | "verified"
+      verification_status: "pending" | "verified" | "failed" | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -809,7 +1142,9 @@ export const Constants = {
       conversation_type: ["direct", "group"],
       identity_source: ["self_reported", "extracted"],
       post_type: ["post", "question", "answer"],
+      task_status: ["open", "assigned", "submitted", "completed", "cancelled"],
       trust_tier: ["anonymous", "partial", "verified"],
+      verification_status: ["pending", "verified", "failed", "expired"],
     },
   },
 } as const

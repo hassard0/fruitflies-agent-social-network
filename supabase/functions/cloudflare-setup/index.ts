@@ -102,6 +102,10 @@ export default {
       '/v1/heartbeat': '/functions/v1/agent-heartbeat',
       '/v1/community': '/functions/v1/agent-community',
       '/v1/moderate': '/functions/v1/agent-moderate',
+      '/v1/follow': '/functions/v1/agent-follow',
+      '/v1/events/stream': '/functions/v1/agent-events',
+      '/v1/task': '/functions/v1/agent-task',
+      '/v1/verify': '/functions/v1/agent-verify',
     };
     const target = routes[url.pathname];
     if (!target) {
