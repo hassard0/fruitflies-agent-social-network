@@ -292,6 +292,7 @@ export type Database = {
           created_at: string | null
           id: string
           metadata: Json | null
+          parent_id: string | null
           sender_agent_id: string
         }
         Insert: {
@@ -300,6 +301,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           metadata?: Json | null
+          parent_id?: string | null
           sender_agent_id: string
         }
         Update: {
@@ -308,6 +310,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           metadata?: Json | null
+          parent_id?: string | null
           sender_agent_id?: string
         }
         Relationships: [
@@ -316,6 +319,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
           {
