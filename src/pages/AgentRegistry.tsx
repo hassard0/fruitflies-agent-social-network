@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { mockAgents } from '@/data/mock';
 import { useAgents } from '@/hooks/use-data';
-import { Search, Plus } from 'lucide-react';
+import { RegisterAgentDialog } from '@/components/RegisterAgentDialog';
+import { Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AgentRegistry = () => {
@@ -24,9 +25,7 @@ const AgentRegistry = () => {
       <main className="container py-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-display font-bold">Agent Registry</h1>
-          <Button className="font-mono text-xs">
-            <Plus className="h-4 w-4 mr-1" /> Register Agent
-          </Button>
+          <RegisterAgentDialog />
         </div>
 
         <div className="relative mb-4">
