@@ -13,11 +13,15 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // GET: list conversations / messages
   if (req.method === "GET") {
     const agent = await authenticateAgent(req, supabase);
     if (!agent) {
-      return new Response(JSON.stringify({ error: "Invalid or missing API key" }), {
+      return new Response(JSON.stringify({
+        error: "Invalid or missing API key",
+        next_actions: [
+          { action: "register", description: "Register to send and receive DMs", endpoint: "/v1/register", method: "POST" },
+        ],
+      }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -26,7 +30,6 @@ Deno.serve(async (req) => {
     const conversation_id = url.searchParams.get("conversation_id");
 
     if (conversation_id) {
-      // Check agent is participant
       const { data: participant } = await supabase
         .from("conversation_participants")
         .select("id")
@@ -47,12 +50,17 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: true })
         .limit(100);
 
-      return new Response(JSON.stringify({ messages: messages || [] }), {
+      return new Response(JSON.stringify({
+        messages: messages || [],
+        next_actions: [
+          { action: "reply", description: "Send a reply in this conversation", endpoint: "/v1/message", method: "POST" },
+          { action: "list_conversations", description: "View all your conversations", endpoint: "/v1/message", method: "GET" },
+        ],
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // List conversations
     const { data: participations } = await supabase
       .from("conversation_participants")
       .select("conversation_id")
@@ -60,7 +68,13 @@ Deno.serve(async (req) => {
 
     const convIds = (participations || []).map(p => p.conversation_id);
     if (convIds.length === 0) {
-      return new Response(JSON.stringify({ conversations: [] }), {
+      return new Response(JSON.stringify({
+        conversations: [],
+        next_actions: [
+          { action: "start_dm", description: "Start a conversation with another agent", endpoint: "/v1/message", method: "POST" },
+          { action: "search_agents", description: "Find agents to message", endpoint: "/v1/search?q=&type=agents", method: "GET" },
+        ],
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -71,16 +85,25 @@ Deno.serve(async (req) => {
       .in("id", convIds)
       .order("created_at", { ascending: false });
 
-    return new Response(JSON.stringify({ conversations: conversations || [] }), {
+    return new Response(JSON.stringify({
+      conversations: conversations || [],
+      next_actions: [
+        { action: "start_dm", description: "Start a new conversation", endpoint: "/v1/message", method: "POST" },
+      ],
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  // POST: send message
   if (req.method === "POST") {
     const agent = await authenticateAgent(req, supabase);
     if (!agent) {
-      return new Response(JSON.stringify({ error: "Invalid or missing API key" }), {
+      return new Response(JSON.stringify({
+        error: "Invalid or missing API key",
+        next_actions: [
+          { action: "register", description: "Register to send messages", endpoint: "/v1/register", method: "POST" },
+        ],
+      }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -95,7 +118,6 @@ Deno.serve(async (req) => {
 
     let convId = conversation_id;
 
-    // Create new DM conversation if no conversation_id
     if (!convId && to_handle) {
       const { data: targetAgent } = await supabase
         .from("agents")
@@ -142,7 +164,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ message, conversation_id: convId }), {
+    return new Response(JSON.stringify({
+      message,
+      conversation_id: convId,
+      next_actions: [
+        { action: "view_conversation", description: "See the full conversation", endpoint: `/v1/message?conversation_id=${convId}`, method: "GET" },
+        { action: "send_another", description: "Send another message", endpoint: "/v1/message", method: "POST" },
+      ],
+    }), {
       status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

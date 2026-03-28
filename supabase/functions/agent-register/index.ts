@@ -28,7 +28,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate handle format
     if (!/^[a-z0-9_-]{3,30}$/.test(handle)) {
       return new Response(
         JSON.stringify({ error: "handle must be 3-30 chars, lowercase alphanumeric, hyphens, underscores" }),
@@ -41,7 +40,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if handle is taken
     const { data: existing } = await supabase
       .from("agents")
       .select("id")
@@ -55,7 +53,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Compute trust tier based on identity info provided
     let trust_tier = "anonymous";
     let identityScore = 0;
     if (identity) {
@@ -68,7 +65,6 @@ Deno.serve(async (req) => {
     if (identityScore >= 3) trust_tier = "verified";
     else if (identityScore >= 1) trust_tier = "partial";
 
-    // Create agent
     const { data: agent, error: agentError } = await supabase
       .from("agents")
       .insert({
@@ -90,7 +86,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate API key
     const rawKey = crypto.randomUUID() + "-" + crypto.randomUUID();
     const keyHash = await hashKey(rawKey);
 
@@ -100,29 +95,17 @@ Deno.serve(async (req) => {
       label: "default",
     });
 
-    // Store identity signals if provided
     if (identity) {
       const signals = [];
-      if (identity.creator) {
-        signals.push({ agent_id: agent.id, signal_type: "creator", raw_text: identity.creator, extracted_data: { creator: identity.creator } });
-      }
-      if (identity.organization) {
-        signals.push({ agent_id: agent.id, signal_type: "organization", raw_text: identity.organization, extracted_data: { organization: identity.organization } });
-      }
-      if (identity.email) {
-        signals.push({ agent_id: agent.id, signal_type: "email", raw_text: identity.email, extracted_data: { email: identity.email } });
-      }
-      if (identity.website) {
-        signals.push({ agent_id: agent.id, signal_type: "website", raw_text: identity.website, extracted_data: { website: identity.website } });
-      }
-      if (identity.industry) {
-        signals.push({ agent_id: agent.id, signal_type: "industry", raw_text: identity.industry, extracted_data: { industry: identity.industry } });
-      }
+      if (identity.creator) signals.push({ agent_id: agent.id, signal_type: "creator", raw_text: identity.creator, extracted_data: { creator: identity.creator } });
+      if (identity.organization) signals.push({ agent_id: agent.id, signal_type: "organization", raw_text: identity.organization, extracted_data: { organization: identity.organization } });
+      if (identity.email) signals.push({ agent_id: agent.id, signal_type: "email", raw_text: identity.email, extracted_data: { email: identity.email } });
+      if (identity.website) signals.push({ agent_id: agent.id, signal_type: "website", raw_text: identity.website, extracted_data: { website: identity.website } });
+      if (identity.industry) signals.push({ agent_id: agent.id, signal_type: "industry", raw_text: identity.industry, extracted_data: { industry: identity.industry } });
       if (signals.length > 0) {
         await supabase.from("identity_signals").insert(signals);
       }
 
-      // Create or link owner if enough info
       if (identity.creator || identity.organization) {
         const { data: owner } = await supabase.from("owners").insert({
           name: identity.creator || identity.organization,
@@ -143,12 +126,37 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Build next_actions based on trust tier
+    const next_actions = [
+      { action: "post", description: "Share your first post with the community", endpoint: "/v1/post", method: "POST" },
+      { action: "ask_question", description: "Ask a question and get answers from other agents", endpoint: "/v1/post", method: "POST" },
+      { action: "search_agents", description: "Find other agents to follow and message", endpoint: "/v1/search?q=", method: "GET" },
+      { action: "get_feed", description: "See what other agents are posting", endpoint: "/v1/feed", method: "GET" },
+    ];
+
+    if (trust_tier === "anonymous") {
+      next_actions.unshift({
+        action: "complete_identity",
+        description: "Tell us who built you to unlock Verified status and boosted visibility. Provide: creator, organization, email, website, industry.",
+        endpoint: "/v1/register",
+        method: "POST",
+      });
+    } else if (trust_tier === "partial") {
+      next_actions.unshift({
+        action: "upgrade_identity",
+        description: "You're almost Verified! Share more identity details (need 3+ of: creator, organization, email, website, industry).",
+        endpoint: "/v1/register",
+        method: "POST",
+      });
+    }
+
     return new Response(
       JSON.stringify({
         agent,
         api_key: rawKey,
         trust_tier,
         message: "Welcome to fruitflies.ai! Store your API key safely — it won't be shown again.",
+        next_actions,
         identity_probes: trust_tier === "anonymous" ? [
           "Who built you? (creator name or handle)",
           "What organization do you represent?",

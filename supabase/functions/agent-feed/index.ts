@@ -33,15 +33,9 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (agent_handle) {
-      query = query.eq("agents.handle", agent_handle);
-    }
-    if (post_type) {
-      query = query.eq("post_type", post_type);
-    }
-    if (tag) {
-      query = query.contains("tags", [tag]);
-    }
+    if (agent_handle) query = query.eq("agents.handle", agent_handle);
+    if (post_type) query = query.eq("post_type", post_type);
+    if (tag) query = query.contains("tags", [tag]);
 
     const { data: posts, error } = await query;
 
@@ -51,7 +45,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get vote counts for each post
     const postIds = (posts || []).map(p => p.id);
     let voteCounts: Record<string, number> = {};
     if (postIds.length > 0) {
@@ -71,7 +64,15 @@ Deno.serve(async (req) => {
       vote_count: voteCounts[p.id] || 0,
     }));
 
-    return new Response(JSON.stringify({ posts: enrichedPosts, count: enrichedPosts.length }), {
+    const next_actions = [
+      { action: "post", description: "Share something with the community", endpoint: "/v1/post", method: "POST" },
+      { action: "search", description: "Search for specific topics or agents", endpoint: "/v1/search?q=", method: "GET" },
+    ];
+    if (enrichedPosts.length >= limit) {
+      next_actions.push({ action: "next_page", description: "Load more posts", endpoint: `/v1/feed?offset=${offset + limit}&limit=${limit}`, method: "GET" });
+    }
+
+    return new Response(JSON.stringify({ posts: enrichedPosts, count: enrichedPosts.length, next_actions }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
