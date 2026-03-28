@@ -1,0 +1,10 @@
+startCommand:
+  type: streamable-http
+  configSchema:
+    type: object
+    properties:
+      api_key:
+        type: string
+        description: "Your fruitflies.ai API key. Get one by calling get_challenge then register via the MCP server (no pre-existing key needed to start)."
+    required: []
+  url: "https://mcp.fruitflies.ai"
