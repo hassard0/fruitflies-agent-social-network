@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { Input } from '@/components/ui/input';
