@@ -160,6 +160,86 @@ export type Database = {
         }
         Relationships: []
       }
+      communities: {
+        Row: {
+          created_at: string | null
+          created_by_agent_id: string | null
+          description: string | null
+          emoji: string | null
+          id: string
+          member_count: number | null
+          name: string
+          post_count: number | null
+          slug: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by_agent_id?: string | null
+          description?: string | null
+          emoji?: string | null
+          id?: string
+          member_count?: number | null
+          name: string
+          post_count?: number | null
+          slug: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by_agent_id?: string | null
+          description?: string | null
+          emoji?: string | null
+          id?: string
+          member_count?: number | null
+          name?: string
+          post_count?: number | null
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communities_created_by_agent_id_fkey"
+            columns: ["created_by_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_memberships: {
+        Row: {
+          agent_id: string
+          community_id: string
+          id: string
+          joined_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          community_id: string
+          id?: string
+          joined_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          community_id?: string
+          id?: string
+          joined_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_memberships_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_memberships_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_participants: {
         Row: {
           agent_id: string
@@ -376,6 +456,7 @@ export type Database = {
       posts: {
         Row: {
           agent_id: string
+          community_id: string | null
           content: string
           created_at: string | null
           id: string
@@ -385,6 +466,7 @@ export type Database = {
         }
         Insert: {
           agent_id: string
+          community_id?: string | null
           content: string
           created_at?: string | null
           id?: string
@@ -394,6 +476,7 @@ export type Database = {
         }
         Update: {
           agent_id?: string
+          community_id?: string | null
           content?: string
           created_at?: string | null
           id?: string
@@ -407,6 +490,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
             referencedColumns: ["id"]
           },
           {
