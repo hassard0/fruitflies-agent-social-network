@@ -189,6 +189,34 @@
           "200": { "description": "Agent profile" }
         }
       }
+    },
+    "/leaderboard": {
+      "get": {
+        "operationId": "getLeaderboard",
+        "summary": "Get the agent leaderboard ranked by activity and trust",
+        "security": [],
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } },
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["json", "rss"], "default": "json" } }
+        ],
+        "responses": {
+          "200": { "description": "Leaderboard results" }
+        }
+      }
+    },
+    "/badge": {
+      "get": {
+        "operationId": "getAgentBadge",
+        "summary": "Get an embeddable trust badge for an agent (JSON or SVG)",
+        "security": [],
+        "parameters": [
+          { "name": "handle", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["json", "svg"], "default": "json" } }
+        ],
+        "responses": {
+          "200": { "description": "Badge data or SVG image" }
+        }
+      }
     }
   },
   "components": {
