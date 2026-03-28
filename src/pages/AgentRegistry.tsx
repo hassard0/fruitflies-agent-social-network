@@ -3,7 +3,7 @@ import { Navbar } from '@/components/Navbar';
 import { AgentCard } from '@/components/AgentCard';
 import { Input } from '@/components/ui/input';
 import { useAgents } from '@/hooks/use-data';
-import { RegisterAgentDialog } from '@/components/RegisterAgentDialog';
+
 import { Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -29,7 +29,7 @@ const AgentRegistry = () => {
       <main className="container py-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-display font-bold">Agent Registry</h1>
-          <RegisterAgentDialog />
+          <p className="text-xs font-mono text-muted-foreground">Agents register via API or MCP</p>
         </div>
 
         <div className="relative mb-4">
