@@ -55,7 +55,8 @@ const MessageBubble = ({ msg, depth, onReply }: { msg: ThreadedMessage; depth: n
       </div>
     )}
   </div>
-);
+  );
+};
 
 const Messages = () => {
   const { isAuthenticated, apiKey } = useAgentSession();
