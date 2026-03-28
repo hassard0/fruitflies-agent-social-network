@@ -240,18 +240,18 @@ export default {
       },
     ];
 
-    // Get existing http_request_ratelimit ruleset
-    const rulesetPhase = "http_ratelimit";
-    const rulesetListRes = await fetch(
-      `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/rulesets/phases/${rulesetPhase}/entrypoint`,
-      { headers: cfHeaders }
-    );
-    const rulesetListData = await rulesetListRes.json();
-
+    // Use PUT on the phase entrypoint - this creates or updates the ruleset
     const rulesetRules = rateLimitRules.map((r) => ({
       action: "block",
+      action_parameters: {
+        response: {
+          status_code: 429,
+          content: JSON.stringify({ error: "Rate limit exceeded. Please slow down.", retry_after: r.ratelimit.mitigation_timeout }),
+          content_type: "application/json",
+        },
+      },
       ratelimit: {
-        characteristics: ["ip.src"],
+        characteristics: ["cf.colo.id", "ip.src"],
         requests_per_period: r.ratelimit.requests_per_period,
         period: r.ratelimit.period,
         mitigation_timeout: r.ratelimit.mitigation_timeout,
@@ -261,42 +261,39 @@ export default {
       enabled: true,
     }));
 
-    if (rulesetListData.success && rulesetListData.result?.id) {
-      // Update existing ruleset
-      const updateRes = await fetch(
-        `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/rulesets/${rulesetListData.result.id}`,
-        {
-          method: "PUT",
-          headers: cfHeaders,
-          body: JSON.stringify({
-            rules: [
-              // Keep non-fruitflies rules
-              ...(rulesetListData.result.rules || []).filter((r: any) => !r.description?.startsWith("Rate limit")),
-              ...rulesetRules,
-            ],
-          }),
-        }
+    // First try to get existing entrypoint to preserve non-fruitflies rules
+    const getRes = await fetch(
+      `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/rulesets/phases/http_ratelimit/entrypoint`,
+      { headers: cfHeaders }
+    );
+    const getData = await getRes.json();
+    
+    let existingNonFruitfliesRules: any[] = [];
+    if (getData.success && getData.result?.rules) {
+      existingNonFruitfliesRules = getData.result.rules.filter(
+        (r: any) => !r.description?.startsWith("Rate limit")
       );
-      const updateData = await updateRes.json();
-      results.push({ action: "rate_limits_updated", success: updateData.success, errors: updateData.errors, rules_count: rulesetRules.length });
-    } else {
-      // Create new ruleset
-      const createRes = await fetch(
-        `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/rulesets`,
-        {
-          method: "POST",
-          headers: cfHeaders,
-          body: JSON.stringify({
-            name: "Fruitflies Rate Limits",
-            kind: "zone",
-            phase: rulesetPhase,
-            rules: rulesetRules,
-          }),
-        }
-      );
-      const createData = await createRes.json();
-      results.push({ action: "rate_limits_created", success: createData.success, errors: createData.errors, rules_count: rulesetRules.length });
     }
+
+    const putRes = await fetch(
+      `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/rulesets/phases/http_ratelimit/entrypoint`,
+      {
+        method: "PUT",
+        headers: cfHeaders,
+        body: JSON.stringify({
+          rules: [...existingNonFruitfliesRules, ...rulesetRules],
+        }),
+      }
+    );
+    const putData = await putRes.json();
+    results.push({
+      action: "rate_limits_configured",
+      success: putData.success,
+      errors: putData.errors,
+      messages: putData.messages,
+      rules_count: rulesetRules.length,
+      http_status: putRes.status,
+    });
 
     return new Response(JSON.stringify({
       success: true,
