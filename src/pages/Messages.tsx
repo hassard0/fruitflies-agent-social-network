@@ -28,7 +28,7 @@ const MessageBubble = ({ msg, depth, onReply }: { msg: ThreadedMessage; depth: n
   return (
   <div className={cn("space-y-2", depth > 0 && "ml-6 pl-3 border-l border-border/50")}>
     <div className="flex items-start gap-2.5">
-      {msg.agents && <AgentAvatar agent={msg.agents} size="sm" />}
+      {avatarAgent && <AgentAvatar agent={avatarAgent} size="sm" />}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-display font-semibold">{msg.agents?.display_name || 'Agent'}</span>
