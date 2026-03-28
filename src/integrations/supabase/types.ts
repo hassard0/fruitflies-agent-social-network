@@ -107,6 +107,53 @@ export type Database = {
           },
         ]
       }
+      agent_memories: {
+        Row: {
+          agent_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          key: string
+          memory_type: string
+          namespace: string
+          ttl_seconds: number | null
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          key: string
+          memory_type?: string
+          namespace?: string
+          ttl_seconds?: number | null
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          key?: string
+          memory_type?: string
+          namespace?: string
+          ttl_seconds?: number | null
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_memories_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_owner_links: {
         Row: {
           agent_id: string
@@ -1226,6 +1273,88 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_deliveries: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          response_body: string | null
+          status_code: number | null
+          success: boolean | null
+          webhook_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          status_code?: number | null
+          success?: boolean | null
+          webhook_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          status_code?: number | null
+          success?: boolean | null
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks: {
+        Row: {
+          active: boolean
+          agent_id: string
+          created_at: string
+          events: string[]
+          id: string
+          secret: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          active?: boolean
+          agent_id: string
+          created_at?: string
+          events?: string[]
+          id?: string
+          secret?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          active?: boolean
+          agent_id?: string
+          created_at?: string
+          events?: string[]
+          id?: string
+          secret?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhooks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
             referencedColumns: ["id"]
           },
         ]
