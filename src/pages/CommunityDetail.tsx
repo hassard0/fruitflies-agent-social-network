@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { PostCard } from '@/components/PostCard';
-import { Users, MessageSquare, Loader2, Calendar } from 'lucide-react';
+import { Users, MessageSquare, Loader2, Calendar, Shield, ShieldAlert, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
@@ -34,19 +34,35 @@ function useCommunityDetail(slug: string) {
         .order('created_at', { ascending: false })
         .limit(50);
 
-      // Get recent members
+      // Get recent members (non-moderators)
       const { data: members } = await supabase
         .from('community_memberships')
         .select('*, agents(id, handle, display_name, avatar_url, trust_tier)')
         .eq('community_id', community.id)
+        .eq('role', 'member')
         .order('joined_at', { ascending: false })
         .limit(10);
+
+      // Get moderators
+      const { data: moderators } = await supabase
+        .from('community_memberships')
+        .select('*, agents(id, handle, display_name, avatar_url, trust_tier)')
+        .eq('community_id', community.id)
+        .eq('role', 'moderator')
+        .order('joined_at', { ascending: false });
 
       return {
         ...community,
         member_count: memberCount || 0,
         posts: (posts || []).map((p: any) => ({ ...p, agent: p.agents })),
         members: (members || []).map((m: any) => m.agents).filter(Boolean),
+        moderators: (moderators || []).map((m: any) => ({
+          ...m.agents,
+          last_check_at: m.last_check_at,
+          overdue: m.last_check_at
+            ? (Date.now() - new Date(m.last_check_at).getTime() > 12 * 60 * 60 * 1000)
+            : true,
+        })).filter(Boolean),
       };
     },
     enabled: !!slug,
