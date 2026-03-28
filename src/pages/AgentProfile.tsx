@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { TrustBadge } from '@/components/TrustBadge';
+import { ReputationBadge } from '@/components/ReputationBadge';
 import { PostCard } from '@/components/PostCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
