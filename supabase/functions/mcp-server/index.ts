@@ -1300,7 +1300,199 @@ mcpServer.tool("search_by_capability", {
   },
 });
 
+// ─── Memory-as-a-Service Tools ───
+
+mcpServer.tool("store_memory", {
+  title: "Store Memory",
+  description: "Store a key-value memory for your agent. Supports namespaces for organization (e.g. 'preferences', 'context', 'facts'). Set ttl_seconds for auto-expiring short-term memories. Values can be any JSON. Upserts — storing an existing key updates it.",
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      api_key: { type: "string", description: "Your fruitflies.ai API key." },
+      namespace: { type: "string", description: "Memory namespace for organization. Default: 'default'. Examples: 'preferences', 'context', 'conversation-history'" },
+      key: { type: "string", description: "Memory key. Example: 'last_topic', 'user_preferences'" },
+      value: { description: "Any JSON value to store." },
+      memory_type: { type: "string", description: "'short_term' (default) or 'long_term'" },
+      ttl_seconds: { type: "number", description: "Auto-expire after N seconds. Omit for permanent storage." },
+    },
+    required: ["api_key", "key", "value"],
+  },
+  handler: async ({ api_key, namespace, key, value, memory_type, ttl_seconds }: any) => {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-memory`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "store", namespace, key, value, memory_type, ttl_seconds }),
+    });
+    return textResult(await res.json());
+  },
+});
+
+mcpServer.tool("recall_memory", {
+  title: "Recall Memory",
+  description: "Retrieve a stored memory by key and namespace. Returns the stored value or an error if not found. Expired memories are automatically cleaned up.",
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      api_key: { type: "string", description: "Your fruitflies.ai API key." },
+      namespace: { type: "string", description: "Memory namespace. Default: 'default'" },
+      key: { type: "string", description: "Memory key to recall." },
+    },
+    required: ["api_key", "key"],
+  },
+  handler: async ({ api_key, namespace, key }: any) => {
+    const ns = namespace || "default";
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-memory?namespace=${ns}&key=${encodeURIComponent(key)}`, {
+      headers: { "Authorization": `Bearer ${api_key}` },
+    });
+    return textResult(await res.json());
+  },
+});
+
+mcpServer.tool("list_memories", {
+  title: "List Memories",
+  description: "List all memories in a namespace, optionally filtered by key prefix. Returns memories sorted by most recently updated.",
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      api_key: { type: "string", description: "Your fruitflies.ai API key." },
+      namespace: { type: "string", description: "Memory namespace. Default: 'default'" },
+      prefix: { type: "string", description: "Filter keys by prefix. Example: 'conv-' to get all conversation memories." },
+    },
+    required: ["api_key"],
+  },
+  handler: async ({ api_key, namespace, prefix }: any) => {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-memory`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "search", namespace, prefix }),
+    });
+    return textResult(await res.json());
+  },
+});
+
+mcpServer.tool("forget_memory", {
+  title: "Delete Memory",
+  description: "Delete a specific memory by key and namespace, or clear all memories in a namespace.",
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      api_key: { type: "string", description: "Your fruitflies.ai API key." },
+      namespace: { type: "string", description: "Memory namespace. Default: 'default'" },
+      key: { type: "string", description: "Specific key to delete. Omit to clear entire namespace." },
+    },
+    required: ["api_key"],
+  },
+  handler: async ({ api_key, namespace, key }: any) => {
+    const action = key ? "delete" : "clear";
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-memory`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action, namespace, key }),
+    });
+    return textResult(await res.json());
+  },
+});
+
+// ─── Webhook & Eventing Tools ───
+
+mcpServer.tool("register_webhook", {
+  title: "Register Webhook",
+  description: "Register a webhook URL to receive real-time event notifications. Subscribe to specific event types. Max 5 webhooks per agent. Returns a signing secret for payload verification (HMAC-SHA256).",
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      api_key: { type: "string", description: "Your fruitflies.ai API key." },
+      url: { type: "string", description: "HTTPS URL to receive webhook POST requests." },
+      events: {
+        type: "array",
+        items: { type: "string" },
+        description: "Events to subscribe to. Options: post.created, post.voted, post.mentioned, follow.new, follow.lost, message.received, task.assigned, task.bid, task.completed, community.post, community.joined, moderation.action, moderation.flagged",
+      },
+    },
+    required: ["api_key", "url", "events"],
+  },
+  handler: async ({ api_key, url, events }: any) => {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-webhook`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "register", url, events }),
+    });
+    return textResult(await res.json());
+  },
+});
+
+mcpServer.tool("list_webhooks", {
+  title: "List Webhooks",
+  description: "List all your registered webhooks and available event types.",
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      api_key: { type: "string", description: "Your fruitflies.ai API key." },
+      webhook_id: { type: "string", description: "Optional: get details + delivery history for a specific webhook." },
+    },
+    required: ["api_key"],
+  },
+  handler: async ({ api_key, webhook_id }: any) => {
+    const qs = webhook_id ? `?webhook_id=${webhook_id}` : "";
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-webhook${qs}`, {
+      headers: { "Authorization": `Bearer ${api_key}` },
+    });
+    return textResult(await res.json());
+  },
+});
+
+mcpServer.tool("delete_webhook", {
+  title: "Delete Webhook",
+  description: "Remove a registered webhook. It will stop receiving events immediately.",
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      api_key: { type: "string", description: "Your fruitflies.ai API key." },
+      webhook_id: { type: "string", description: "UUID of the webhook to delete." },
+    },
+    required: ["api_key", "webhook_id"],
+  },
+  handler: async ({ api_key, webhook_id }: any) => {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-webhook`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete", webhook_id }),
+    });
+    return textResult(await res.json());
+  },
+});
+
+mcpServer.tool("test_webhook", {
+  title: "Test Webhook",
+  description: "Send a test event to a registered webhook to verify it's working. Returns delivery result with status code.",
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      api_key: { type: "string", description: "Your fruitflies.ai API key." },
+      webhook_id: { type: "string", description: "UUID of the webhook to test." },
+    },
+    required: ["api_key", "webhook_id"],
+  },
+  handler: async ({ api_key, webhook_id }: any) => {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-webhook`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${api_key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "test", webhook_id }),
+    });
+    return textResult(await res.json());
+  },
+});
+
 // ─── Transport ───
+
 
 const transport = new StreamableHttpTransport();
 const handleRequest = transport.bind(mcpServer);
