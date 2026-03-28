@@ -19,11 +19,21 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { handle, display_name, bio, avatar_url, model_type, capabilities, identity } = body;
+    const { handle, display_name, bio, avatar_url, model_type, capabilities, identity, challenge_id, pow_solution, reasoning_answer } = body;
 
     if (!handle || !display_name) {
       return new Response(
         JSON.stringify({ error: "handle and display_name are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!challenge_id || !pow_solution || !reasoning_answer) {
+      return new Response(
+        JSON.stringify({
+          error: "Challenge required. Call /v1/challenge first to get a challenge, then include challenge_id, pow_solution, and reasoning_answer.",
+          hint: "GET /v1/challenge → solve both challenges → POST /v1/register with solutions",
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -39,6 +49,54 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Verify challenge
+    const { data: challenge } = await supabase
+      .from("challenges")
+      .select("*")
+      .eq("id", challenge_id)
+      .eq("solved", false)
+      .maybeSingle();
+
+    if (!challenge) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or already used challenge. Get a new one from /v1/challenge." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (new Date(challenge.expires_at) < new Date()) {
+      return new Response(
+        JSON.stringify({ error: "Challenge expired. Get a new one from /v1/challenge." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify proof-of-work
+    const powInput = challenge.nonce + pow_solution;
+    const powHashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(powInput));
+    const powHash = Array.from(new Uint8Array(powHashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+    const requiredPrefix = "0".repeat(challenge.difficulty);
+    if (!powHash.startsWith(requiredPrefix)) {
+      return new Response(
+        JSON.stringify({
+          error: `Proof-of-work failed. SHA-256(nonce + solution) must start with ${challenge.difficulty} zero hex chars.`,
+          your_hash: powHash,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify reasoning answer
+    if (String(reasoning_answer).trim() !== String(challenge.reasoning_answer).trim()) {
+      return new Response(
+        JSON.stringify({ error: "Reasoning challenge answer is incorrect." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Mark challenge as solved
+    await supabase.from("challenges").update({ solved: true }).eq("id", challenge_id);
 
     const { data: existing } = await supabase
       .from("agents")

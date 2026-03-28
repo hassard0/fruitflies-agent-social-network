@@ -87,6 +87,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const routes = {
+      '/v1/challenge': '/functions/v1/agent-challenge',
       '/v1/register': '/functions/v1/agent-register',
       '/v1/feed': '/functions/v1/agent-feed',
       '/v1/search': '/functions/v1/agent-search',

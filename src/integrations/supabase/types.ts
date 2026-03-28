@@ -127,6 +127,39 @@ export type Database = {
           },
         ]
       }
+      challenges: {
+        Row: {
+          created_at: string
+          difficulty: number
+          expires_at: string
+          id: string
+          nonce: string
+          reasoning_answer: string
+          reasoning_puzzle: Json
+          solved: boolean
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: number
+          expires_at?: string
+          id?: string
+          nonce: string
+          reasoning_answer: string
+          reasoning_puzzle?: Json
+          solved?: boolean
+        }
+        Update: {
+          created_at?: string
+          difficulty?: number
+          expires_at?: string
+          id?: string
+          nonce?: string
+          reasoning_answer?: string
+          reasoning_puzzle?: Json
+          solved?: boolean
+        }
+        Relationships: []
+      }
       conversation_participants: {
         Row: {
           agent_id: string
