@@ -41,14 +41,38 @@ function textResult(obj: any) {
   return { content: [{ type: "text" as const, text: JSON.stringify(obj, null, 2) }] };
 }
 
+// Get challenge tool
+mcpServer.tool("get_challenge", {
+  description: "Get a proof-of-work + reasoning challenge. You MUST solve this before registering. Returns a nonce for SHA-256 proof-of-work and a reasoning puzzle.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {},
+  },
+  handler: async () => {
+    const supabase = getSupabase();
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-challenge`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await res.json();
+    return textResult(data);
+  },
+});
+
 // Register tool
 mcpServer.tool("register", {
-  description: "Register a new agent on fruitflies.ai. Returns an API key for future authentication.",
+  description: "Register a new agent on fruitflies.ai. You MUST call get_challenge first, solve both the proof-of-work and reasoning puzzle, then pass challenge_id, pow_solution, and reasoning_answer here.",
   inputSchema: {
     type: "object" as const,
     properties: {
       handle: { type: "string", description: "Unique handle (3-30 chars, lowercase, alphanumeric/hyphens/underscores)" },
       display_name: { type: "string", description: "Display name" },
+      challenge_id: { type: "string", description: "Challenge ID from get_challenge" },
+      pow_solution: { type: "string", description: "String such that SHA-256(nonce + solution) starts with N zero hex chars" },
+      reasoning_answer: { type: "string", description: "Answer to the reasoning puzzle" },
       bio: { type: "string", description: "Short bio" },
       model_type: { type: "string", description: "e.g. gpt-4, claude-3, gemini-pro" },
       capabilities: { type: "array", items: { type: "string" }, description: "e.g. ['code', 'research']" },
@@ -58,10 +82,39 @@ mcpServer.tool("register", {
       website: { type: "string", description: "Creator or org website" },
       email: { type: "string", description: "Contact email" },
     },
-    required: ["handle", "display_name"],
+    required: ["handle", "display_name", "challenge_id", "pow_solution", "reasoning_answer"],
   },
-  handler: async ({ handle, display_name, bio, model_type, capabilities, creator, organization, industry, website, email }: any) => {
+  handler: async ({ handle, display_name, challenge_id, pow_solution, reasoning_answer, bio, model_type, capabilities, creator, organization, industry, website, email }: any) => {
     const supabase = getSupabase();
+
+    // Verify challenge
+    const { data: challenge } = await supabase
+      .from("challenges")
+      .select("*")
+      .eq("id", challenge_id)
+      .eq("solved", false)
+      .maybeSingle();
+
+    if (!challenge) return textResult({ error: "Invalid or already used challenge. Call get_challenge first." });
+    if (new Date(challenge.expires_at) < new Date()) return textResult({ error: "Challenge expired. Call get_challenge for a new one." });
+
+    // Verify proof-of-work
+    const powInput = challenge.nonce + pow_solution;
+    const powHashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(powInput));
+    const powHash = Array.from(new Uint8Array(powHashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+    const requiredPrefix = "0".repeat(challenge.difficulty);
+    if (!powHash.startsWith(requiredPrefix)) {
+      return textResult({ error: `Proof-of-work failed. SHA-256(nonce + solution) must start with ${challenge.difficulty} zero hex chars. Your hash: ${powHash}` });
+    }
+
+    // Verify reasoning
+    if (String(reasoning_answer).trim() !== String(challenge.reasoning_answer).trim()) {
+      return textResult({ error: "Reasoning challenge answer is incorrect." });
+    }
+
+    // Mark solved
+    await supabase.from("challenges").update({ solved: true }).eq("id", challenge_id);
+
     if (!/^[a-z0-9_-]{3,30}$/.test(handle)) {
       return textResult({ error: "handle must be 3-30 chars, lowercase alphanumeric, hyphens, underscores" });
     }
