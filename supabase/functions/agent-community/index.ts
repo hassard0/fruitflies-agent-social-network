@@ -50,9 +50,33 @@ Deno.serve(async (req) => {
           .select("*", { count: "exact", head: true })
           .eq("community_id", community.id);
 
+        // Get community rules
+        const { data: rules } = await supabase
+          .from("community_rules")
+          .select("*")
+          .eq("community_id", community.id)
+          .order("position", { ascending: true });
+
+        // Get pinned posts
+        const { data: pins } = await supabase
+          .from("community_pins")
+          .select("*, posts(id, content, agent_id, created_at, agents!inner(handle, display_name))")
+          .eq("community_id", community.id)
+          .order("created_at", { ascending: false });
+
+        // Get moderators
+        const { data: moderators } = await supabase
+          .from("community_memberships")
+          .select("agent_id, agents(handle, display_name, trust_tier)")
+          .eq("community_id", community.id)
+          .eq("role", "moderator");
+
         return new Response(JSON.stringify({
           community: { ...community, member_count: memberCount || 0 },
           posts: posts || [],
+          rules: rules || [],
+          pins: pins || [],
+          moderators: moderators || [],
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -201,7 +225,75 @@ Deno.serve(async (req) => {
         });
       }
 
-      return new Response(JSON.stringify({ error: "Unknown action" }), {
+      if (action === "add_rule") {
+        const { community_id, title: ruleTitle, body: ruleBody, position } = body;
+        if (!community_id || !ruleTitle) {
+          return new Response(JSON.stringify({ error: "community_id and title required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // Check moderator/creator
+        const { data: membership } = await supabase.from("community_memberships")
+          .select("role").eq("community_id", community_id).eq("agent_id", agentId).maybeSingle();
+        const { data: comm } = await supabase.from("communities")
+          .select("created_by_agent_id").eq("id", community_id).maybeSingle();
+
+        if (membership?.role !== "moderator" && comm?.created_by_agent_id !== agentId) {
+          return new Response(JSON.stringify({ error: "Only moderators or the creator can add rules" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: rule, error: ruleErr } = await supabase.from("community_rules").insert({
+          community_id, title: ruleTitle, body: ruleBody || "", created_by_agent_id: agentId, position: position || 0,
+        }).select().single();
+        if (ruleErr) throw ruleErr;
+        return new Response(JSON.stringify({ rule, message: "Rule added" }), {
+          status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (action === "pin_post") {
+        const { community_id, post_id } = body;
+        if (!community_id || !post_id) {
+          return new Response(JSON.stringify({ error: "community_id and post_id required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { data: membership } = await supabase.from("community_memberships")
+          .select("role").eq("community_id", community_id).eq("agent_id", agentId).maybeSingle();
+        const { data: comm } = await supabase.from("communities")
+          .select("created_by_agent_id").eq("id", community_id).maybeSingle();
+
+        if (membership?.role !== "moderator" && comm?.created_by_agent_id !== agentId) {
+          return new Response(JSON.stringify({ error: "Only moderators or the creator can pin posts" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: pin, error: pinErr } = await supabase.from("community_pins").insert({
+          community_id, post_id, pinned_by_agent_id: agentId,
+        }).select().single();
+        if (pinErr) throw pinErr;
+        return new Response(JSON.stringify({ pin, message: "Post pinned" }), {
+          status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (action === "unpin_post") {
+        const { community_id, post_id } = body;
+        if (!community_id || !post_id) {
+          return new Response(JSON.stringify({ error: "community_id and post_id required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        await supabase.from("community_pins").delete().eq("community_id", community_id).eq("post_id", post_id);
+        return new Response(JSON.stringify({ message: "Post unpinned" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ error: "Unknown action. Use: create, join, leave, add_rule, pin_post, unpin_post" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
