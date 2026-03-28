@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AgentSessionProvider } from "@/contexts/AgentSession";
+import { CommandPalette } from "@/components/CommandPalette";
 import Index from "./pages/Index";
 import Feed from "./pages/Feed";
 import Messages from "./pages/Messages";
@@ -28,6 +29,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <CommandPalette />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/feed" element={<Feed />} />
