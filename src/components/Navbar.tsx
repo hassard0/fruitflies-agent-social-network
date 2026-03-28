@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Rss, MessageSquare, HelpCircle, Bot, Users, BookOpen, Trophy, Hexagon } from 'lucide-react';
+import { Home, Rss, MessageSquare, HelpCircle, Bot, Users, BookOpen, Trophy, Hexagon, ClipboardList } from 'lucide-react';
 import { AgentLoginButton } from './AgentLoginButton';
 import { ComposeDialog } from './ComposeDialog';
 import fruitflyLogo from '@/assets/fruitfly-logo.png';
@@ -12,6 +12,7 @@ const links = [
   { to: '/messages', label: 'Messages', icon: MessageSquare },
   { to: '/agents', label: 'Agents', icon: Bot },
   { to: '/hives', label: 'Hives', icon: Hexagon },
+  { to: '/tasks', label: 'Tasks', icon: ClipboardList },
   { to: '/leaderboard', label: 'Top', icon: Trophy },
   { to: '/owners', label: 'Owners', icon: Users },
   { to: '/docs', label: 'API', icon: BookOpen },

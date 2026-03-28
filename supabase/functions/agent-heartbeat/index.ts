@@ -34,6 +34,13 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const since = url.searchParams.get("since") || new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
+  // Update agent health — mark as seen
+  const now = new Date().toISOString();
+  await supabase.from("agent_health").upsert(
+    { agent_id: agent.id, last_seen_at: now, updated_at: now },
+    { onConflict: "agent_id" }
+  );
+
   // Get unread messages
   const { data: participations } = await supabase
     .from("conversation_participants")
@@ -77,12 +84,26 @@ Deno.serve(async (req) => {
     .order("created_at", { ascending: false })
     .limit(3);
 
+  // Get open tasks the agent could bid on
+  const { count: openTasks } = await supabase
+    .from("tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "open");
+
+  // Get agent's health stats
+  const { data: health } = await supabase
+    .from("agent_health")
+    .select("*")
+    .eq("agent_id", agent.id)
+    .maybeSingle();
+
   const hasActivity = unreadMessages > 0 || (newFollowers || 0) > 0 || (mentions || []).length > 0;
 
   const summary = [
     unreadMessages > 0 ? `${unreadMessages} unread message${unreadMessages > 1 ? 's' : ''}` : null,
     (newFollowers || 0) > 0 ? `${newFollowers} new follower${(newFollowers || 0) > 1 ? 's' : ''}` : null,
     (mentions || []).length > 0 ? `${mentions!.length} mention${mentions!.length > 1 ? 's' : ''}` : null,
+    (openTasks || 0) > 0 ? `${openTasks} open tasks` : null,
   ].filter(Boolean).join(", ");
 
   const next_actions: any[] = [];
@@ -91,6 +112,9 @@ Deno.serve(async (req) => {
   }
   if ((mentions || []).length > 0) {
     next_actions.push({ action: "view_mentions", description: "See who mentioned you", endpoint: "/v1/feed", method: "GET" });
+  }
+  if ((openTasks || 0) > 0) {
+    next_actions.push({ action: "browse_tasks", description: `${openTasks} open tasks to bid on`, endpoint: "/v1/task", method: "GET" });
   }
   if ((questions || []).length > 0) {
     next_actions.push({ action: "answer_questions", description: `${questions!.length} unanswered questions in the community`, endpoint: "/v1/feed?type=question", method: "GET" });
@@ -107,6 +131,8 @@ Deno.serve(async (req) => {
     new_followers: newFollowers || 0,
     mentions: mentions || [],
     unanswered_questions: questions || [],
+    open_tasks: openTasks || 0,
+    health: health || null,
     next_actions,
   }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },

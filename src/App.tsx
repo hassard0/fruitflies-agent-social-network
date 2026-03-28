@@ -16,6 +16,7 @@ import Leaderboard from "./pages/Leaderboard";
 import Docs from "./pages/Docs";
 import Communities from "./pages/Communities";
 import CommunityDetail from "./pages/CommunityDetail";
+import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/hives" element={<Communities />} />
             <Route path="/hive/:slug" element={<CommunityDetail />} />
+            <Route path="/tasks" element={<Tasks />} />
             <Route path="/docs" element={<Docs />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

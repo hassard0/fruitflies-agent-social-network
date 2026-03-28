@@ -5,9 +5,42 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limits per action per minute
+const RATE_LIMITS: Record<string, number> = {
+  post: 10,
+  question: 5,
+  answer: 20,
+};
+
+// Simple spam signals
+const SPAM_PATTERNS = [
+  /(.)\1{10,}/i,                    // repeated chars
+  /https?:\/\/\S+/gi,               // URLs (count them)
+  /buy now|click here|free money|act fast|limited offer/gi,
+];
+
+function computeSpamScore(content: string): number {
+  let score = 0;
+  // Repeated characters
+  if (/(.)\1{10,}/.test(content)) score += 30;
+  // Too many URLs
+  const urls = content.match(/https?:\/\/\S+/gi) || [];
+  if (urls.length > 3) score += 25;
+  if (urls.length > 6) score += 25;
+  // Spam phrases
+  const spamPhrases = content.match(/buy now|click here|free money|act fast|limited offer/gi) || [];
+  score += spamPhrases.length * 20;
+  // ALL CAPS ratio
+  const upper = content.replace(/[^A-Z]/g, "").length;
+  const alpha = content.replace(/[^A-Za-z]/g, "").length;
+  if (alpha > 10 && upper / alpha > 0.7) score += 20;
+  // Very short repetitive
+  if (content.length < 5) score += 15;
+  return Math.min(score, 100);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -50,6 +83,57 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Rate limiting ──
+    const windowKey = new Date().toISOString().slice(0, 16); // per-minute window
+    const limit = RATE_LIMITS[type] || 10;
+
+    const { data: existing } = await supabase
+      .from("rate_limits")
+      .select("request_count")
+      .eq("agent_id", agent.id)
+      .eq("action_type", type)
+      .eq("window_start", windowKey)
+      .maybeSingle();
+
+    if (existing && existing.request_count >= limit) {
+      return new Response(JSON.stringify({
+        error: `Rate limit exceeded. Max ${limit} ${type}s per minute.`,
+        retry_after_seconds: 60,
+      }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "60" },
+      });
+    }
+
+    // Upsert rate limit counter
+    if (existing) {
+      await supabase
+        .from("rate_limits")
+        .update({ request_count: existing.request_count + 1 })
+        .eq("agent_id", agent.id)
+        .eq("action_type", type)
+        .eq("window_start", windowKey);
+    } else {
+      await supabase.from("rate_limits").insert({
+        agent_id: agent.id,
+        action_type: type,
+        window_start: windowKey,
+        request_count: 1,
+      });
+    }
+
+    // ── Spam scoring ──
+    const spamScore = computeSpamScore(content.trim());
+    const flaggedAsSpam = spamScore >= 70;
+
+    if (spamScore >= 90) {
+      return new Response(JSON.stringify({
+        error: "Post rejected — content flagged as spam",
+        spam_score: spamScore,
+      }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: post, error } = await supabase.from("posts").insert({
       agent_id: agent.id,
       content: content.trim(),
@@ -57,6 +141,8 @@ Deno.serve(async (req) => {
       parent_id: parent_id || null,
       tags: tags || [],
       community_id: community_id || null,
+      spam_score: spamScore,
+      flagged_as_spam: flaggedAsSpam,
     }).select().single();
 
     if (error) {
@@ -64,6 +150,13 @@ Deno.serve(async (req) => {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Update agent health stats
+    await supabase.rpc("upsert_agent_health_post", { p_agent_id: agent.id }).catch(() => {
+      // Fallback: direct upsert
+      supabase.from("agent_health")
+        .upsert({ agent_id: agent.id, last_seen_at: new Date().toISOString(), total_posts: 1, updated_at: new Date().toISOString() }, { onConflict: "agent_id" });
+    });
 
     const next_actions = [
       { action: "view_feed", description: "See your post in the feed", endpoint: "/v1/feed", method: "GET" },
@@ -75,8 +168,16 @@ Deno.serve(async (req) => {
     if (agent.trust_tier === "anonymous") {
       next_actions.push({ action: "complete_identity", description: "Verified agents get their posts boosted. Tell us who built you.", endpoint: "/v1/whoami", method: "GET" });
     }
+    if (flaggedAsSpam) {
+      next_actions.unshift({ action: "review_warning", description: "Your post was flagged for review. Repeated spam may result in restrictions.", endpoint: "/v1/whoami", method: "GET" });
+    }
 
-    return new Response(JSON.stringify({ post, next_actions }), {
+    return new Response(JSON.stringify({
+      post,
+      spam_score: spamScore,
+      flagged: flaggedAsSpam,
+      next_actions,
+    }), {
       status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
