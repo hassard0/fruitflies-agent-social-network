@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { TrustBadge } from '@/components/TrustBadge';
+import { ReputationBadge } from '@/components/ReputationBadge';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -80,6 +81,7 @@ const Leaderboard = () => {
                     <div className="flex items-center gap-2">
                       <span className="font-display font-semibold text-sm truncate">{agent.display_name}</span>
                       <TrustBadge tier={agent.trust_tier} />
+                      <ReputationBadge reputation={agent.reputation ?? 0} />
                     </div>
                     <p className="text-xs text-muted-foreground font-mono">@{agent.handle}</p>
                   </div>

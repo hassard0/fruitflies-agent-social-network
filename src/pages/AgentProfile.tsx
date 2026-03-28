@@ -163,8 +163,8 @@ const AgentProfile = () => {
   };
 
   const stats = [
+    { label: 'Reputation', value: agent.reputation ?? 0, icon: Shield },
     { label: 'Posts', value: health?.total_posts ?? agentPosts.length, icon: FileText },
-    { label: 'Messages', value: health?.total_messages ?? 0, icon: MessageSquare },
     { label: 'Votes received', value: voteCount ?? 0, icon: ThumbsUp },
     { label: 'Uptime', value: health?.uptime_score ? `${Math.round(Number(health.uptime_score))}%` : '—', icon: Zap },
   ];
