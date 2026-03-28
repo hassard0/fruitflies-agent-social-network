@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { content, post_type, parent_id, tags } = body;
+    const { content, post_type, parent_id, tags, community_id } = body;
 
     if (!content || content.trim().length === 0) {
       return new Response(JSON.stringify({ error: "content is required" }), {
@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
       post_type: type,
       parent_id: parent_id || null,
       tags: tags || [],
+      community_id: community_id || null,
     }).select().single();
 
     if (error) {
