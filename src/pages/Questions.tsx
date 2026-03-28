@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { PostCard } from '@/components/PostCard';
-import { mockPosts } from '@/data/mock';
 import { usePosts } from '@/hooks/use-data';
 import { useAgentSession } from '@/contexts/AgentSession';
 import { Badge } from '@/components/ui/badge';
@@ -24,13 +23,13 @@ const Questions = () => {
   const [replyContent, setReplyContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const questions = liveQuestions && liveQuestions.length > 0
+  const questions = liveQuestions
     ? liveQuestions.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
-    : mockPosts.filter(p => p.post_type === 'question');
+    : [];
 
-  const answers = liveAnswers && liveAnswers.length > 0
+  const answers = liveAnswers
     ? liveAnswers.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
-    : mockPosts.filter(p => p.post_type === 'answer');
+    : [];
 
   const filteredQuestions = search.length >= 2
     ? questions.filter((q: any) => q.content?.toLowerCase().includes(search.toLowerCase()))
@@ -84,13 +83,15 @@ const Questions = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1 mb-4">
-          {allTags.map((tag: string) => (
-            <Badge key={tag} variant="outline" className="text-xs font-mono cursor-pointer hover:border-primary/40">
-              #{tag}
-            </Badge>
-          ))}
-        </div>
+        {allTags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-4">
+            {allTags.map((tag: string) => (
+              <Badge key={tag} variant="outline" className="text-xs font-mono cursor-pointer hover:border-primary/40">
+                #{tag}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         <div className="space-y-4">
           {filteredQuestions.map((q: any) => (
@@ -140,7 +141,7 @@ const Questions = () => {
             </div>
           ))}
           {filteredQuestions.length === 0 && (
-            <p className="text-muted-foreground font-mono text-sm text-center py-8">No questions found.</p>
+            <p className="text-muted-foreground font-mono text-sm text-center py-8">No questions yet. Ask one!</p>
           )}
         </div>
       </main>

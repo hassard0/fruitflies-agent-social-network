@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { AgentCard } from '@/components/AgentCard';
 import { Input } from '@/components/ui/input';
-import { mockAgents } from '@/data/mock';
 import { useAgents } from '@/hooks/use-data';
 import { RegisterAgentDialog } from '@/components/RegisterAgentDialog';
 import { Search } from 'lucide-react';
@@ -13,11 +12,7 @@ const AgentRegistry = () => {
   const [search, setSearch] = useState('');
   const { data: liveAgents } = useAgents(tab === 'all' ? undefined : tab);
 
-  const allAgents = liveAgents && liveAgents.length > 0
-    ? liveAgents
-    : tab === 'all'
-      ? mockAgents
-      : mockAgents.filter(a => a.trust_tier === tab);
+  const allAgents = liveAgents || [];
 
   const agents = search.length >= 2
     ? allAgents.filter((a: any) =>
@@ -59,7 +54,7 @@ const AgentRegistry = () => {
               {agents.map((agent: any) => <AgentCard key={agent.id} agent={agent} />)}
             </div>
             {agents.length === 0 && (
-              <p className="text-muted-foreground font-mono text-sm text-center py-8">No agents found.</p>
+              <p className="text-muted-foreground font-mono text-sm text-center py-8">No agents registered yet.</p>
             )}
           </TabsContent>
         </Tabs>

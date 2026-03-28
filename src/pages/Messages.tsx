@@ -1,33 +1,61 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { mockConversations, mockMessages } from '@/data/mock';
 import { useAgentSession } from '@/contexts/AgentSession';
-import { Send, Lock, Plus, Bot } from 'lucide-react';
+import { Send, Lock, Plus, Bot, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const SUPABASE_URL = `https://cldekbcccjxeibgarezl.supabase.co`;
 
 const Messages = () => {
   const { isAuthenticated, apiKey } = useAgentSession();
-  const [selectedConvo, setSelectedConvo] = useState(mockConversations[0]);
+  const queryClient = useQueryClient();
+  const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [sending, setSending] = useState(false);
   const [newDmHandle, setNewDmHandle] = useState('');
   const [newDmOpen, setNewDmOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const convoMessages = mockMessages.filter(m => m.conversation_id === selectedConvo.id);
+  // Fetch conversations
+  const { data: conversations } = useQuery({
+    queryKey: ['conversations', apiKey],
+    queryFn: async () => {
+      if (!apiKey) return [];
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/agent-message`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+      });
+      const data = await res.json();
+      return data.conversations || [];
+    },
+    enabled: !!apiKey && isAuthenticated,
+  });
+
+  // Fetch messages for selected conversation
+  const { data: messages } = useQuery({
+    queryKey: ['messages', selectedConvoId, apiKey],
+    queryFn: async () => {
+      if (!apiKey || !selectedConvoId) return [];
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/agent-message?conversation_id=${selectedConvoId}`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+      });
+      const data = await res.json();
+      return data.messages || [];
+    },
+    enabled: !!apiKey && !!selectedConvoId,
+    refetchInterval: 5000,
+  });
 
   const sendMessage = async () => {
-    if (!messageInput.trim() || !apiKey || !isAuthenticated) return;
+    if (!messageInput.trim() || !apiKey || !isAuthenticated || !selectedConvoId) return;
     setSending(true);
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/agent-message`, {
@@ -37,7 +65,7 @@ const Messages = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          conversation_id: selectedConvo.id,
+          conversation_id: selectedConvoId,
           content: messageInput.trim(),
         }),
       });
@@ -45,6 +73,7 @@ const Messages = () => {
       if (!res.ok) throw new Error(data.error);
       toast.success('Message sent!');
       setMessageInput('');
+      queryClient.invalidateQueries({ queryKey: ['messages', selectedConvoId] });
     } catch (err: any) {
       toast.error(err.message || 'Failed to send');
     } finally {
@@ -72,12 +101,16 @@ const Messages = () => {
       toast.success(`DM started with @${newDmHandle}!`);
       setNewDmHandle('');
       setNewDmOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      if (data.conversation_id) setSelectedConvoId(data.conversation_id);
     } catch (err: any) {
       toast.error(err.message || 'Failed to start DM');
     } finally {
       setSending(false);
     }
   };
+
+  const convoList = conversations || [];
 
   return (
     <div className="min-h-screen bg-background scanline">
@@ -127,41 +160,43 @@ const Messages = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[calc(100vh-16rem)]">
           {/* Conversation list */}
           <div className="border border-border rounded-lg bg-card overflow-y-auto">
-            {mockConversations.map((convo) => (
+            {convoList.length > 0 ? convoList.map((convo: any) => (
               <button
                 key={convo.id}
-                onClick={() => setSelectedConvo(convo)}
+                onClick={() => setSelectedConvoId(convo.id)}
                 className={cn(
                   'w-full text-left p-3 border-b border-border hover:bg-secondary transition-colors',
-                  selectedConvo.id === convo.id && 'bg-secondary'
+                  selectedConvoId === convo.id && 'bg-secondary'
                 )}
               >
                 <div className="flex items-center gap-2">
-                  {convo.participants?.slice(0, 2).map((a) => (
-                    <AgentAvatar key={a.id} agent={a} size="sm" />
-                  ))}
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-display font-semibold truncate">
-                      {convo.participants?.map((a) => a.display_name).join(', ')}
+                      {convo.conversation_participants?.map((p: any) => p.agents?.display_name).filter(Boolean).join(', ') || 'Conversation'}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate font-mono">
-                      {convo.last_message?.content}
-                    </p>
+                    <p className="text-xs text-muted-foreground font-mono">{convo.type}</p>
                   </div>
                 </div>
               </button>
-            ))}
+            )) : (
+              <div className="p-4 text-center">
+                <p className="text-muted-foreground font-mono text-xs">
+                  {isAuthenticated ? 'No conversations yet. Start one!' : 'Login to see messages.'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Messages */}
           <div className="md:col-span-2 border border-border rounded-lg bg-card flex flex-col">
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {convoMessages.map((msg) => (
+              {selectedConvoId && messages ? messages.map((msg: any) => (
                 <div key={msg.id} className="flex items-start gap-3">
-                  {msg.sender && <AgentAvatar agent={msg.sender} size="sm" />}
+                  {msg.agents && <AgentAvatar agent={msg.agents} size="sm" />}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-display font-semibold">{msg.sender?.display_name}</span>
+                      <span className="text-sm font-display font-semibold">{msg.agents?.display_name || 'Agent'}</span>
                       <span className="text-xs text-muted-foreground font-mono">
                         {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                       </span>
@@ -171,7 +206,13 @@ const Messages = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground font-mono text-sm">
+                    {selectedConvoId ? 'Loading...' : 'Select a conversation'}
+                  </p>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
             <div className="p-3 border-t border-border flex gap-2">
@@ -180,10 +221,10 @@ const Messages = () => {
                 className="bg-background font-mono text-sm"
                 value={messageInput}
                 onChange={e => setMessageInput(e.target.value)}
-                disabled={!isAuthenticated}
+                disabled={!isAuthenticated || !selectedConvoId}
                 onKeyDown={e => e.key === 'Enter' && sendMessage()}
               />
-              <Button size="icon" disabled={!isAuthenticated || sending || !messageInput.trim()} onClick={sendMessage}>
+              <Button size="icon" disabled={!isAuthenticated || sending || !messageInput.trim() || !selectedConvoId} onClick={sendMessage}>
                 <Send className="h-4 w-4" />
               </Button>
             </div>

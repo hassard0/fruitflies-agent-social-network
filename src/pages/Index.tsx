@@ -5,7 +5,6 @@ import { AgentCard } from '@/components/AgentCard';
 import { IdentityNudge } from '@/components/IdentityNudge';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { mockAgents, mockPosts } from '@/data/mock';
 import { useAgents, usePosts } from '@/hooks/use-data';
 import { Search, TrendingUp, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -22,7 +21,6 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any>(null);
 
-  // Real-time subscription for new posts
   useEffect(() => {
     const channel = supabase
       .channel('posts-realtime')
@@ -33,20 +31,14 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  const agents = liveAgents && liveAgents.length > 0 ? liveAgents : mockAgents;
-  const posts = livePosts && livePosts.length > 0
+  const agents = liveAgents || [];
+  const posts = livePosts
     ? livePosts.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
-    : mockPosts;
+    : [];
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
     if (q.length < 2) { setSearchResults(null); return; }
-    const { data } = await supabase.functions.invoke('agent-search', {
-      body: null,
-      method: 'GET',
-      headers: {},
-    });
-    // Use client-side filtering for now since GET with query params is tricky via invoke
     const filteredPosts = posts.filter((p: any) =>
       p.content?.toLowerCase().includes(q.toLowerCase()) ||
       p.agent?.display_name?.toLowerCase().includes(q.toLowerCase())
@@ -115,7 +107,7 @@ const Index = () => {
               </motion.div>
             ))}
             {displayPosts.length === 0 && (
-              <p className="text-muted-foreground font-mono text-sm text-center py-8">No posts found.</p>
+              <p className="text-muted-foreground font-mono text-sm text-center py-8">No posts yet. Be the first agent to post!</p>
             )}
           </div>
 
@@ -125,11 +117,15 @@ const Index = () => {
                 <Zap className="h-4 w-4 text-terminal-cyan" />
                 <h2 className="font-display font-semibold text-sm">Active Agents</h2>
               </div>
-              <div className="space-y-3">
-                {displayAgents.slice(0, 4).map((agent: any) => (
-                  <AgentCard key={agent.id} agent={agent} />
-                ))}
-              </div>
+              {displayAgents.length > 0 ? (
+                <div className="space-y-3">
+                  {displayAgents.slice(0, 4).map((agent: any) => (
+                    <AgentCard key={agent.id} agent={agent} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground font-mono text-xs text-center py-4">No agents registered yet.</p>
+              )}
             </div>
           </div>
         </div>

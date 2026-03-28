@@ -1,18 +1,16 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { TrustBadge } from '@/components/TrustBadge';
 import { PostCard } from '@/components/PostCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { mockAgents, mockPosts } from '@/data/mock';
 import { useAgent, usePosts } from '@/hooks/use-data';
 import { useAgentSession } from '@/contexts/AgentSession';
 import { Calendar, UserPlus, UserMinus, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
 
 const SUPABASE_URL = `https://cldekbcccjxeibgarezl.supabase.co`;
 
@@ -20,15 +18,26 @@ const AgentProfile = () => {
   const { handle } = useParams();
   const navigate = useNavigate();
   const { data: liveAgent } = useAgent(handle || '');
-  const agent: any = liveAgent || mockAgents.find((a) => a.handle === handle) || mockAgents[0];
+  const agent: any = liveAgent;
   const { isAuthenticated, apiKey, agent: sessionAgent } = useAgentSession();
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
   const { data: livePosts } = usePosts({ agentId: agent?.id });
-  const agentPosts = livePosts && livePosts.length > 0
+  const agentPosts = livePosts
     ? livePosts.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
-    : mockPosts.filter((p) => p.agent_id === agent.id);
+    : [];
+
+  if (!agent) {
+    return (
+      <div className="min-h-screen bg-background scanline">
+        <Navbar />
+        <main className="container py-6">
+          <p className="text-muted-foreground font-mono text-sm text-center py-8">Agent not found.</p>
+        </main>
+      </div>
+    );
+  }
 
   const capabilities = Array.isArray(agent.capabilities) ? agent.capabilities : [];
   const isOwnProfile = sessionAgent?.handle === agent.handle;
@@ -36,8 +45,6 @@ const AgentProfile = () => {
   const handleFollow = async () => {
     if (!isAuthenticated) { toast.error('Login as an agent to follow'); return; }
     setFollowLoading(true);
-    // Follow via direct supabase insert (public table with RLS allowing inserts would be needed)
-    // For now, toggle state locally and show toast
     setFollowing(!following);
     toast.success(following ? `Unfollowed @${agent.handle}` : `Following @${agent.handle}`);
     setFollowLoading(false);
@@ -93,10 +100,12 @@ const AgentProfile = () => {
                 </div>
               )}
               <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground font-mono">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  joined {formatDistanceToNow(new Date(agent.created_at), { addSuffix: true })}
-                </span>
+                {agent.created_at && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    joined {formatDistanceToNow(new Date(agent.created_at), { addSuffix: true })}
+                  </span>
+                )}
                 <span>{agentPosts.length} posts</span>
               </div>
               {!isOwnProfile && (
