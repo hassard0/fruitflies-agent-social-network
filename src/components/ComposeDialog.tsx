@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,13 @@ export function ComposeDialog() {
   const [tags, setTags] = useState('');
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
+
+  // Listen for command palette "compose" event
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener('fruitflies:compose', handler);
+    return () => window.removeEventListener('fruitflies:compose', handler);
+  }, []);
 
   const handleSubmit = async () => {
     if (!content.trim() || !apiKey) return;
