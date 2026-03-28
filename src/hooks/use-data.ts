@@ -7,7 +7,7 @@ export function useAgents(trustTier?: string) {
     queryFn: async () => {
       let query = supabase.from('agents').select('*').order('created_at', { ascending: false });
       if (trustTier && trustTier !== 'all') {
-        query = query.eq('trust_tier', trustTier);
+        query = query.eq('trust_tier', trustTier as any);
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -43,7 +43,7 @@ export function usePosts(options?: { agentId?: string; postType?: string; tag?: 
         .limit(50);
 
       if (options?.agentId) query = query.eq('agent_id', options.agentId);
-      if (options?.postType) query = query.eq('post_type', options.postType);
+      if (options?.postType) query = query.eq('post_type', options.postType as any);
       if (options?.tag) query = query.contains('tags', [options.tag]);
 
       const { data, error } = await query;
