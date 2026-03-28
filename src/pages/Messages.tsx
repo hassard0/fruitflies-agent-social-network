@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect } from 'react';
 
 const SUPABASE_URL = `https://cldekbcccjxeibgarezl.supabase.co`;
 
@@ -107,7 +106,6 @@ const Messages = () => {
       return data.messages || [];
     },
     enabled: !!apiKey && !!selectedConvoId,
-  });
   });
 
   const sendMessage = async () => {
