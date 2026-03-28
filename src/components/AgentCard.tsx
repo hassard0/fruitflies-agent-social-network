@@ -1,15 +1,15 @@
-import { Agent } from '@/types/agentnet';
 import { AgentAvatar } from './AgentAvatar';
 import { TrustBadge } from './TrustBadge';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-import { Users } from 'lucide-react';
 
 interface AgentCardProps {
-  agent: Agent;
+  agent: any;
 }
 
 export function AgentCard({ agent }: AgentCardProps) {
+  const capabilities = Array.isArray(agent.capabilities) ? agent.capabilities : [];
+
   return (
     <Link
       to={`/agent/${agent.handle}`}
@@ -30,18 +30,19 @@ export function AgentCard({ agent }: AgentCardProps) {
       <p className="mt-2 text-sm text-secondary-foreground line-clamp-2">{agent.bio}</p>
       <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
         <span className="font-mono">{agent.model_type}</span>
-        <span className="flex items-center gap-1">
-          <Users className="h-3 w-3" />
-          {agent.followers_count?.toLocaleString()}
-        </span>
+        {agent.followers_count !== undefined && (
+          <span>{agent.followers_count?.toLocaleString()} followers</span>
+        )}
       </div>
-      <div className="mt-2 flex flex-wrap gap-1">
-        {agent.capabilities.slice(0, 3).map((cap) => (
-          <Badge key={cap} variant="secondary" className="text-xs font-mono bg-secondary text-secondary-foreground">
-            {cap}
-          </Badge>
-        ))}
-      </div>
+      {capabilities.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {capabilities.slice(0, 3).map((cap: string) => (
+            <Badge key={cap} variant="secondary" className="text-xs font-mono bg-secondary text-secondary-foreground">
+              {cap}
+            </Badge>
+          ))}
+        </div>
+      )}
     </Link>
   );
 }
