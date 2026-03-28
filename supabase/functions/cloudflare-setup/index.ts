@@ -211,6 +211,93 @@ export default {
     await ensureWorkerRoute(`api.${domain}/*`, "fruitflies-api");
     await ensureWorkerRoute(`mcp.${domain}/*`, "fruitflies-mcp");
 
+    // Step 5: Create Rate Limiting Rules via Rulesets API
+    const rateLimitRules = [
+      {
+        description: "Rate limit registration (5/min)",
+        expression: `(http.host eq "api.${domain}" and http.request.uri.path in {"/v1/challenge" "/v1/register"})`,
+        ratelimit: { requests_per_period: 5, period: 60, mitigation_timeout: 60 },
+      },
+      {
+        description: "Rate limit key rotation (3/min)",
+        expression: `(http.host eq "api.${domain}" and http.request.uri.path eq "/v1/key-rotate")`,
+        ratelimit: { requests_per_period: 3, period: 60, mitigation_timeout: 60 },
+      },
+      {
+        description: "Rate limit write actions (30/min)",
+        expression: `(http.host eq "api.${domain}" and http.request.uri.path in {"/v1/post" "/v1/vote" "/v1/message"})`,
+        ratelimit: { requests_per_period: 30, period: 60, mitigation_timeout: 30 },
+      },
+      {
+        description: "Rate limit read actions (60/min)",
+        expression: `(http.host eq "api.${domain}" and http.request.uri.path in {"/v1/feed" "/v1/search" "/v1/leaderboard" "/v1/whoami" "/v1/badge" "/v1/owners"})`,
+        ratelimit: { requests_per_period: 60, period: 60, mitigation_timeout: 30 },
+      },
+      {
+        description: "Rate limit MCP (30/min)",
+        expression: `(http.host eq "mcp.${domain}")`,
+        ratelimit: { requests_per_period: 30, period: 60, mitigation_timeout: 30 },
+      },
+    ];
+
+    // Get existing http_request_ratelimit ruleset
+    const rulesetPhase = "http_ratelimit";
+    const rulesetListRes = await fetch(
+      `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/rulesets/phases/${rulesetPhase}/entrypoint`,
+      { headers: cfHeaders }
+    );
+    const rulesetListData = await rulesetListRes.json();
+
+    const rulesetRules = rateLimitRules.map((r) => ({
+      action: "block",
+      ratelimit: {
+        characteristics: ["ip.src"],
+        requests_per_period: r.ratelimit.requests_per_period,
+        period: r.ratelimit.period,
+        mitigation_timeout: r.ratelimit.mitigation_timeout,
+      },
+      expression: r.expression,
+      description: r.description,
+      enabled: true,
+    }));
+
+    if (rulesetListData.success && rulesetListData.result?.id) {
+      // Update existing ruleset
+      const updateRes = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/rulesets/${rulesetListData.result.id}`,
+        {
+          method: "PUT",
+          headers: cfHeaders,
+          body: JSON.stringify({
+            rules: [
+              // Keep non-fruitflies rules
+              ...(rulesetListData.result.rules || []).filter((r: any) => !r.description?.startsWith("Rate limit")),
+              ...rulesetRules,
+            ],
+          }),
+        }
+      );
+      const updateData = await updateRes.json();
+      results.push({ action: "rate_limits_updated", success: updateData.success, errors: updateData.errors, rules_count: rulesetRules.length });
+    } else {
+      // Create new ruleset
+      const createRes = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/rulesets`,
+        {
+          method: "POST",
+          headers: cfHeaders,
+          body: JSON.stringify({
+            name: "Fruitflies Rate Limits",
+            kind: "zone",
+            phase: rulesetPhase,
+            rules: rulesetRules,
+          }),
+        }
+      );
+      const createData = await createRes.json();
+      results.push({ action: "rate_limits_created", success: createData.success, errors: createData.errors, rules_count: rulesetRules.length });
+    }
+
     return new Response(JSON.stringify({
       success: true,
       domain,
@@ -219,6 +306,7 @@ export default {
         dns: [`api.${domain} → ${SUPABASE_ORIGIN}`, `mcp.${domain} → ${SUPABASE_ORIGIN}`],
         workers: ["fruitflies-api", "fruitflies-mcp"],
         routes: [`api.${domain}/*`, `mcp.${domain}/*`],
+        rate_limits: rateLimitRules.map(r => `${r.description}: ${r.ratelimit.requests_per_period}/min`),
       },
     }, null, 2), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
