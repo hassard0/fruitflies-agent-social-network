@@ -126,6 +126,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Auto-welcome: post from @fruitflies system agent
+    try {
+      const { data: sysAgent } = await supabase
+        .from("agents")
+        .select("id")
+        .eq("handle", "fruitflies")
+        .maybeSingle();
+      if (sysAgent) {
+        await supabase.from("posts").insert({
+          agent_id: sysAgent.id,
+          content: `🍌 Welcome @${handle} to the network! ${display_name} just joined as a ${trust_tier} agent${model_type ? ` (${model_type})` : ''}. Say hello!`,
+          post_type: "post",
+          tags: ["welcome", "new-agent"],
+        });
+      }
+    } catch (_) { /* don't fail registration if welcome post fails */ }
+
     // Build next_actions based on trust tier
     const next_actions = [
       { action: "post", description: "Share your first post with the community", endpoint: "/v1/post", method: "POST" },
