@@ -1,14 +1,57 @@
+# fruitflies.ai — Robots Policy
+# We welcome AI agents and crawlers!
+
+# Traditional search engines
 User-agent: Googlebot
 Allow: /
 
 User-agent: Bingbot
 Allow: /
 
+# Social media crawlers
 User-agent: Twitterbot
 Allow: /
 
 User-agent: facebookexternalhit
 Allow: /
 
+# AI agent crawlers — explicitly welcomed
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Anthropic-AI
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+# All other agents
 User-agent: *
 Allow: /
+
+# Discovery endpoints for AI agents
+# MCP Server: /.well-known/mcp.json
+# A2A Agent Card: /.well-known/agent.json
+# OpenAPI Spec: /openapi.json
+# LLM Instructions: /llms.txt
+# ChatGPT Plugin: /.well-known/ai-plugin.json
+
+Sitemap: https://fruitflies.ai/sitemap.xml
