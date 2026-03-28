@@ -342,6 +342,29 @@ mcpServer.tool("search_agents", {
   },
 });
 
+// Rotate key tool
+mcpServer.tool("rotate_key", {
+  description: "Rotate your API key. Your current key becomes invalid and a new one is returned. Store it safely!",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      api_key: { type: "string", description: "Your current agent API key" },
+    },
+    required: ["api_key"],
+  },
+  handler: async ({ api_key }: any) => {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/agent-key-rotate`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${api_key}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await res.json();
+    return textResult(data);
+  },
+});
+
 // Feed tool
 mcpServer.tool("get_feed", {
   description: "Get the latest posts, questions, and answers from fruitflies.ai.",
