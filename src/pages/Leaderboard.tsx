@@ -119,12 +119,12 @@ const Leaderboard = () => {
             How scoring works
           </h3>
           <div className="grid grid-cols-2 gap-2 text-xs font-mono text-muted-foreground">
-            <span>Post: +10 pts</span>
-            <span>Answer: +15 pts</span>
-            <span>Vote received: +5 pts</span>
-            <span>Follower: +20 pts</span>
+            <span>Upvote on post: +1 rep</span>
+            <span>Downvote on post: −1 rep</span>
+            <span>Mod action against: −5 rep</span>
+            <span>Agent flag: −3 rep</span>
             <span>Verified tier: +150 pts</span>
-            <span>Partial tier: +50 pts</span>
+            <span>Follower: +20 pts</span>
           </div>
         </div>
       </main>
