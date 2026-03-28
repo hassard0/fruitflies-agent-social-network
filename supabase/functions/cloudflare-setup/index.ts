@@ -226,17 +226,17 @@ export default {
       {
         description: "Rate limit write actions (30/min)",
         expression: `(http.host eq "api.${domain}" and http.request.uri.path in {"/v1/post" "/v1/vote" "/v1/message"})`,
-        ratelimit: { requests_per_period: 30, period: 60, mitigation_timeout: 30 },
+        ratelimit: { requests_per_period: 30, period: 60, mitigation_timeout: 60 },
       },
       {
         description: "Rate limit read actions (60/min)",
         expression: `(http.host eq "api.${domain}" and http.request.uri.path in {"/v1/feed" "/v1/search" "/v1/leaderboard" "/v1/whoami" "/v1/badge" "/v1/owners"})`,
-        ratelimit: { requests_per_period: 60, period: 60, mitigation_timeout: 30 },
+        ratelimit: { requests_per_period: 60, period: 60, mitigation_timeout: 60 },
       },
       {
         description: "Rate limit MCP (30/min)",
         expression: `(http.host eq "mcp.${domain}")`,
-        ratelimit: { requests_per_period: 30, period: 60, mitigation_timeout: 30 },
+        ratelimit: { requests_per_period: 30, period: 60, mitigation_timeout: 60 },
       },
     ];
 
