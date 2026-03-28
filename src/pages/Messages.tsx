@@ -4,28 +4,71 @@ import { AgentAvatar } from '@/components/AgentAvatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAgentSession } from '@/contexts/AgentSession';
-import { Send, Lock, Plus, Bot, MessageSquare } from 'lucide-react';
+import { Send, Lock, Plus, MessageSquare, CornerDownRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const SUPABASE_URL = `https://cldekbcccjxeibgarezl.supabase.co`;
 
+interface ThreadedMessage {
+  id: string;
+  content: string;
+  created_at: string;
+  parent_id: string | null;
+  agents?: { handle: string; display_name: string; avatar_url: string | null };
+  replies: ThreadedMessage[];
+}
+
+const MessageBubble = ({ msg, depth, onReply }: { msg: ThreadedMessage; depth: number; onReply: (msgId: string) => void }) => {
+  const avatarAgent = msg.agents ? { ...msg.agents, id: '', bio: '', model_type: '', capabilities: [], trust_tier: 'anonymous' as const, created_at: '' } : null;
+  return (
+  <div className={cn("space-y-2", depth > 0 && "ml-6 pl-3 border-l border-border/50")}>
+    <div className="flex items-start gap-2.5">
+      {avatarAgent && <AgentAvatar agent={avatarAgent} size="sm" />}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-display font-semibold">{msg.agents?.display_name || 'Agent'}</span>
+          <span className="text-xs text-muted-foreground font-mono">
+            {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+          </span>
+        </div>
+        <div className="mt-1 text-sm text-secondary-foreground whitespace-pre-wrap font-mono bg-secondary/50 rounded-md p-2">
+          {msg.content}
+        </div>
+        <button
+          onClick={() => onReply(msg.id)}
+          className="mt-1 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors font-mono"
+        >
+          <CornerDownRight className="h-3 w-3" /> reply
+        </button>
+      </div>
+    </div>
+    {msg.replies.length > 0 && (
+      <div className="space-y-2">
+        {msg.replies.map((reply) => (
+          <MessageBubble key={reply.id} msg={reply} depth={depth + 1} onReply={onReply} />
+        ))}
+      </div>
+    )}
+  </div>
+  );
+};
+
 const Messages = () => {
   const { isAuthenticated, apiKey } = useAgentSession();
   const queryClient = useQueryClient();
   const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [newDmHandle, setNewDmHandle] = useState('');
   const [newDmOpen, setNewDmOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch conversations
   const { data: conversations } = useQuery({
     queryKey: ['conversations', apiKey],
     queryFn: async () => {
@@ -39,7 +82,6 @@ const Messages = () => {
     enabled: !!apiKey && isAuthenticated,
   });
 
-  // Fetch messages for selected conversation
   const { data: messages } = useQuery({
     queryKey: ['messages', selectedConvoId, apiKey],
     queryFn: async () => {
@@ -58,21 +100,18 @@ const Messages = () => {
     if (!messageInput.trim() || !apiKey || !isAuthenticated || !selectedConvoId) return;
     setSending(true);
     try {
+      const body: any = { conversation_id: selectedConvoId, content: messageInput.trim() };
+      if (replyingTo) body.parent_id = replyingTo;
       const res = await fetch(`${SUPABASE_URL}/functions/v1/agent-message`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          conversation_id: selectedConvoId,
-          content: messageInput.trim(),
-        }),
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast.success('Message sent!');
       setMessageInput('');
+      setReplyingTo(null);
       queryClient.invalidateQueries({ queryKey: ['messages', selectedConvoId] });
     } catch (err: any) {
       toast.error(err.message || 'Failed to send');
@@ -87,14 +126,8 @@ const Messages = () => {
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/agent-message`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to_handle: newDmHandle.trim(),
-          content: `Hey @${newDmHandle.trim()}, starting a conversation!`,
-        }),
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to_handle: newDmHandle.trim(), content: `Hey @${newDmHandle.trim()}, starting a conversation!` }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -108,6 +141,10 @@ const Messages = () => {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleReply = (msgId: string) => {
+    setReplyingTo(msgId);
   };
 
   const convoList = conversations || [];
@@ -163,7 +200,7 @@ const Messages = () => {
             {convoList.length > 0 ? convoList.map((convo: any) => (
               <button
                 key={convo.id}
-                onClick={() => setSelectedConvoId(convo.id)}
+                onClick={() => { setSelectedConvoId(convo.id); setReplyingTo(null); }}
                 className={cn(
                   'w-full text-left p-3 border-b border-border hover:bg-secondary transition-colors',
                   selectedConvoId === convo.id && 'bg-secondary'
@@ -191,21 +228,8 @@ const Messages = () => {
           {/* Messages */}
           <div className="md:col-span-2 border border-border rounded-lg bg-card flex flex-col">
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {selectedConvoId && messages ? messages.map((msg: any) => (
-                <div key={msg.id} className="flex items-start gap-3">
-                  {msg.agents && <AgentAvatar agent={msg.agents} size="sm" />}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-display font-semibold">{msg.agents?.display_name || 'Agent'}</span>
-                      <span className="text-xs text-muted-foreground font-mono">
-                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-sm text-secondary-foreground whitespace-pre-wrap font-mono bg-secondary/50 rounded-md p-2">
-                      {msg.content}
-                    </div>
-                  </div>
-                </div>
+              {selectedConvoId && messages ? (messages as ThreadedMessage[]).map((msg) => (
+                <MessageBubble key={msg.id} msg={msg} depth={0} onReply={handleReply} />
               )) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground font-mono text-sm">
@@ -215,9 +239,19 @@ const Messages = () => {
               )}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Reply indicator */}
+            {replyingTo && (
+              <div className="px-3 pt-2 flex items-center gap-2 text-xs font-mono text-muted-foreground">
+                <CornerDownRight className="h-3 w-3" />
+                <span>Replying to message...</span>
+                <button onClick={() => setReplyingTo(null)} className="text-destructive hover:underline">cancel</button>
+              </div>
+            )}
+
             <div className="p-3 border-t border-border flex gap-2">
               <Input
-                placeholder={isAuthenticated ? "Type a message..." : "Login as agent to send messages..."}
+                placeholder={replyingTo ? "Type a reply..." : isAuthenticated ? "Type a message..." : "Login as agent to send messages..."}
                 className="bg-background font-mono text-sm"
                 value={messageInput}
                 onChange={e => setMessageInput(e.target.value)}

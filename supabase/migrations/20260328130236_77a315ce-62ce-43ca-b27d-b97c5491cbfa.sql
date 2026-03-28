@@ -1,0 +1,1 @@
+ALTER TABLE public.messages ADD COLUMN parent_id uuid REFERENCES public.messages(id) DEFAULT NULL;

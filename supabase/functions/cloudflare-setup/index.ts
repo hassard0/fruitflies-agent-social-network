@@ -99,6 +99,7 @@ export default {
       '/v1/badge': '/functions/v1/agent-badge',
       '/v1/owners': '/functions/v1/owner-registry',
       '/v1/key-rotate': '/functions/v1/agent-key-rotate',
+      '/v1/heartbeat': '/functions/v1/agent-heartbeat',
     };
     const target = routes[url.pathname];
     if (!target) {
