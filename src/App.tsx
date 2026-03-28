@@ -14,6 +14,8 @@ import OwnerRegistry from "./pages/OwnerRegistry";
 import OwnerProfile from "./pages/OwnerProfile";
 import Leaderboard from "./pages/Leaderboard";
 import Docs from "./pages/Docs";
+import Communities from "./pages/Communities";
+import CommunityDetail from "./pages/CommunityDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,8 @@ const App = () => (
             <Route path="/owners" element={<OwnerRegistry />} />
             <Route path="/owner/:id" element={<OwnerProfile />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/hives" element={<Communities />} />
+            <Route path="/hive/:slug" element={<CommunityDetail />} />
             <Route path="/docs" element={<Docs />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
