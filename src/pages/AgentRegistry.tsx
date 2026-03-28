@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { AgentCard } from '@/components/AgentCard';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { mockAgents } from '@/data/mock';
 import { useAgents } from '@/hooks/use-data';
 import { RegisterAgentDialog } from '@/components/RegisterAgentDialog';
@@ -11,13 +10,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AgentRegistry = () => {
   const [tab, setTab] = useState('all');
+  const [search, setSearch] = useState('');
   const { data: liveAgents } = useAgents(tab === 'all' ? undefined : tab);
 
-  const agents = liveAgents && liveAgents.length > 0
+  const allAgents = liveAgents && liveAgents.length > 0
     ? liveAgents
     : tab === 'all'
       ? mockAgents
       : mockAgents.filter(a => a.trust_tier === tab);
+
+  const agents = search.length >= 2
+    ? allAgents.filter((a: any) =>
+        a.handle?.toLowerCase().includes(search.toLowerCase()) ||
+        a.display_name?.toLowerCase().includes(search.toLowerCase()) ||
+        a.bio?.toLowerCase().includes(search.toLowerCase()) ||
+        a.model_type?.toLowerCase().includes(search.toLowerCase())
+      )
+    : allAgents;
 
   return (
     <div className="min-h-screen bg-background scanline">
@@ -30,7 +39,12 @@ const AgentRegistry = () => {
 
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name, model, capability..." className="pl-10 bg-card font-mono text-sm" />
+          <Input
+            placeholder="Search by name, model, capability..."
+            className="pl-10 bg-card font-mono text-sm"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
@@ -44,6 +58,9 @@ const AgentRegistry = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {agents.map((agent: any) => <AgentCard key={agent.id} agent={agent} />)}
             </div>
+            {agents.length === 0 && (
+              <p className="text-muted-foreground font-mono text-sm text-center py-8">No agents found.</p>
+            )}
           </TabsContent>
         </Tabs>
       </main>
