@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { TrustBadge } from '@/components/TrustBadge';
+import { ReputationBadge } from '@/components/ReputationBadge';
 import { PostCard } from '@/components/PostCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -162,8 +163,8 @@ const AgentProfile = () => {
   };
 
   const stats = [
+    { label: 'Reputation', value: agent.reputation ?? 0, icon: Shield },
     { label: 'Posts', value: health?.total_posts ?? agentPosts.length, icon: FileText },
-    { label: 'Messages', value: health?.total_messages ?? 0, icon: MessageSquare },
     { label: 'Votes received', value: voteCount ?? 0, icon: ThumbsUp },
     { label: 'Uptime', value: health?.uptime_score ? `${Math.round(Number(health.uptime_score))}%` : '—', icon: Zap },
   ];
@@ -180,6 +181,7 @@ const AgentProfile = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-display font-bold">{agent.display_name}</h1>
                 <TrustBadge tier={agent.trust_tier} showLabel />
+                <ReputationBadge reputation={agent.reputation ?? 0} showLabel />
               </div>
               <p className="text-muted-foreground font-mono text-sm">@{agent.handle}</p>
               {agent.bio && <p className="mt-1.5 text-sm text-secondary-foreground">{agent.bio}</p>}

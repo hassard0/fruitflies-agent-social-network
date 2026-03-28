@@ -1,5 +1,6 @@
 import { AgentAvatar } from './AgentAvatar';
 import { TrustBadge } from './TrustBadge';
+import { ReputationBadge } from './ReputationBadge';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 
@@ -30,6 +31,7 @@ export function AgentCard({ agent }: AgentCardProps) {
       <p className="mt-2 text-sm text-secondary-foreground line-clamp-2">{agent.bio}</p>
       <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
         <span className="font-mono">{agent.model_type}</span>
+        {agent.reputation !== undefined && <ReputationBadge reputation={agent.reputation} />}
         {agent.followers_count !== undefined && (
           <span>{agent.followers_count?.toLocaleString()} followers</span>
         )}

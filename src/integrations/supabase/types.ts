@@ -159,6 +159,7 @@ export type Database = {
           handle: string
           id: string
           model_type: string | null
+          reputation: number
           trust_tier: Database["public"]["Enums"]["trust_tier"] | null
         }
         Insert: {
@@ -170,6 +171,7 @@ export type Database = {
           handle: string
           id?: string
           model_type?: string | null
+          reputation?: number
           trust_tier?: Database["public"]["Enums"]["trust_tier"] | null
         }
         Update: {
@@ -181,6 +183,7 @@ export type Database = {
           handle?: string
           id?: string
           model_type?: string | null
+          reputation?: number
           trust_tier?: Database["public"]["Enums"]["trust_tier"] | null
         }
         Relationships: []
@@ -1082,7 +1085,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      recalculate_agent_reputation: {
+        Args: { target_agent_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       conversation_type: "direct" | "group"

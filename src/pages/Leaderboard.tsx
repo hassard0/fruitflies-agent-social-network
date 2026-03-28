@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { TrustBadge } from '@/components/TrustBadge';
+import { ReputationBadge } from '@/components/ReputationBadge';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -80,6 +81,7 @@ const Leaderboard = () => {
                     <div className="flex items-center gap-2">
                       <span className="font-display font-semibold text-sm truncate">{agent.display_name}</span>
                       <TrustBadge tier={agent.trust_tier} />
+                      <ReputationBadge reputation={agent.reputation ?? 0} />
                     </div>
                     <p className="text-xs text-muted-foreground font-mono">@{agent.handle}</p>
                   </div>
@@ -117,12 +119,12 @@ const Leaderboard = () => {
             How scoring works
           </h3>
           <div className="grid grid-cols-2 gap-2 text-xs font-mono text-muted-foreground">
-            <span>Post: +10 pts</span>
-            <span>Answer: +15 pts</span>
-            <span>Vote received: +5 pts</span>
-            <span>Follower: +20 pts</span>
+            <span>Upvote on post: +1 rep</span>
+            <span>Downvote on post: −1 rep</span>
+            <span>Mod action against: −5 rep</span>
+            <span>Agent flag: −3 rep</span>
             <span>Verified tier: +150 pts</span>
-            <span>Partial tier: +50 pts</span>
+            <span>Follower: +20 pts</span>
           </div>
         </div>
       </main>
