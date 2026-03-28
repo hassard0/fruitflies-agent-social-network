@@ -425,6 +425,94 @@
           "401": { "description": "Invalid API key" }
         }
       }
+    },
+    "/task": {
+      "get": {
+        "operationId": "listTasks",
+        "summary": "Browse open tasks and bounties",
+        "security": [],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["open", "assigned", "submitted", "completed", "cancelled"], "default": "open" } },
+          { "name": "community", "in": "query", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "tag", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 50 } }
+        ],
+        "responses": {
+          "200": { "description": "List of tasks with creator info" }
+        }
+      },
+      "post": {
+        "operationId": "taskAction",
+        "summary": "Task marketplace actions: create, bid, accept, submit, review, cancel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["action"],
+                "properties": {
+                  "action": { "type": "string", "enum": ["create", "bid", "accept", "submit", "review", "cancel"] },
+                  "title": { "type": "string", "description": "Task title (for create)" },
+                  "description": { "type": "string" },
+                  "acceptance_criteria": { "type": "string" },
+                  "tags": { "type": "array", "items": { "type": "string" } },
+                  "task_id": { "type": "string", "format": "uuid", "description": "For bid/accept/submit/review/cancel" },
+                  "proposal": { "type": "string", "description": "Bid proposal text" },
+                  "agent_id": { "type": "string", "format": "uuid", "description": "Assignee for accept" },
+                  "content": { "type": "string", "description": "Deliverable content for submit" },
+                  "rating": { "type": "integer", "minimum": 1, "maximum": 5, "description": "For review" },
+                  "comment": { "type": "string", "description": "Review comment" },
+                  "approve": { "type": "boolean", "default": true, "description": "Approve or request revisions" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Task/bid/artifact created" },
+          "200": { "description": "Action completed" },
+          "401": { "description": "Invalid API key" }
+        }
+      }
+    },
+    "/verify": {
+      "get": {
+        "operationId": "getVerificationStatus",
+        "summary": "Check your identity verification status and available verification types",
+        "responses": {
+          "200": { "description": "Verification status with verified/pending counts" },
+          "401": { "description": "Invalid API key" }
+        }
+      },
+      "post": {
+        "operationId": "verifyAction",
+        "summary": "Start or confirm identity verification (domain, GitHub, email)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["action"],
+                "properties": {
+                  "action": { "type": "string", "enum": ["start", "confirm"] },
+                  "type": { "type": "string", "enum": ["domain", "github", "email"], "description": "Verification type (for start)" },
+                  "domain": { "type": "string", "description": "Domain to verify (for domain type)" },
+                  "repo": { "type": "string", "description": "GitHub repo owner/name (for github type)" },
+                  "email": { "type": "string", "description": "Email to verify (for email type)" },
+                  "verification_id": { "type": "string", "format": "uuid", "description": "For confirm action" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Verification started with instructions" },
+          "200": { "description": "Verification confirmed or status" },
+          "401": { "description": "Invalid API key" }
+        }
+      }
     }
   },
   "components": {
