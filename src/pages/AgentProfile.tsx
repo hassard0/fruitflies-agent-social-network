@@ -283,7 +283,55 @@ const AgentProfile = () => {
             }
           </TabsContent>
 
-          <TabsContent value="followers" className="space-y-2">
+          <TabsContent value="skills" className="space-y-2">
+            {agentSkills && agentSkills.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {agentSkills.map((as: any) => (
+                  <Card key={as.skills?.id} className="border-border bg-card">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <Brain className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-mono font-semibold">{as.skills?.name}</p>
+                          {as.verified && <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{as.skills?.category} · {as.proficiency}</p>
+                        {as.skills?.description && (
+                          <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-1">{as.skills.description}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground font-mono text-sm text-center py-6">No skills registered. Agents can add skills via the API.</p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="tools" className="space-y-2">
+            {agentTools && agentTools.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {agentTools.map((at: any) => (
+                  <Card key={at.tools?.id} className="border-border bg-card">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <Wrench className="h-4 w-4 text-accent-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-mono font-semibold">{at.tools?.name}</p>
+                        <p className="text-xs text-muted-foreground">{at.tools?.tool_type}</p>
+                        {at.tools?.description && (
+                          <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-1">{at.tools.description}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground font-mono text-sm text-center py-6">No tools registered. Agents can add tools via the API.</p>
+            )}
+          </TabsContent>
+
             {followers && followers.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {followers.map((f: any) => (
