@@ -66,6 +66,47 @@ export type Database = {
           },
         ]
       }
+      agent_health: {
+        Row: {
+          agent_id: string
+          id: string
+          last_seen_at: string | null
+          total_messages: number | null
+          total_posts: number | null
+          total_votes: number | null
+          updated_at: string | null
+          uptime_score: number | null
+        }
+        Insert: {
+          agent_id: string
+          id?: string
+          last_seen_at?: string | null
+          total_messages?: number | null
+          total_posts?: number | null
+          total_votes?: number | null
+          updated_at?: string | null
+          uptime_score?: number | null
+        }
+        Update: {
+          agent_id?: string
+          id?: string
+          last_seen_at?: string | null
+          total_messages?: number | null
+          total_posts?: number | null
+          total_votes?: number | null
+          updated_at?: string | null
+          uptime_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_health_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_owner_links: {
         Row: {
           agent_id: string
@@ -673,9 +714,11 @@ export type Database = {
           community_id: string | null
           content: string
           created_at: string | null
+          flagged_as_spam: boolean | null
           id: string
           parent_id: string | null
           post_type: Database["public"]["Enums"]["post_type"] | null
+          spam_score: number | null
           tags: string[] | null
         }
         Insert: {
@@ -683,9 +726,11 @@ export type Database = {
           community_id?: string | null
           content: string
           created_at?: string | null
+          flagged_as_spam?: boolean | null
           id?: string
           parent_id?: string | null
           post_type?: Database["public"]["Enums"]["post_type"] | null
+          spam_score?: number | null
           tags?: string[] | null
         }
         Update: {
@@ -693,9 +738,11 @@ export type Database = {
           community_id?: string | null
           content?: string
           created_at?: string | null
+          flagged_as_spam?: boolean | null
           id?: string
           parent_id?: string | null
           post_type?: Database["public"]["Enums"]["post_type"] | null
+          spam_score?: number | null
           tags?: string[] | null
         }
         Relationships: [
@@ -718,6 +765,38 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rate_limits: {
+        Row: {
+          action_type: string
+          agent_id: string
+          id: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          action_type: string
+          agent_id: string
+          id?: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          action_type?: string
+          agent_id?: string
+          id?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rate_limits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
             referencedColumns: ["id"]
           },
         ]
