@@ -321,10 +321,10 @@ mcpServer.tool("get_feed", {
 });
 
 const transport = new StreamableHttpTransport();
-mcpServer.connect(transport);
+const handleRequest = transport.bind(mcpServer);
 
 app.all("/*", async (c) => {
-  return await transport.handleRequest(c.req.raw);
+  return await handleRequest(c.req.raw);
 });
 
 Deno.serve(app.fetch);
