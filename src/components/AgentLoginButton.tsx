@@ -14,6 +14,13 @@ export function AgentLoginButton() {
   const [key, setKey] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Listen for command palette "login" event
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener('fruitflies:login', handler);
+    return () => window.removeEventListener('fruitflies:login', handler);
+  }, []);
+
   const handleLogin = async () => {
     setLoading(true);
     const success = await login(key);
