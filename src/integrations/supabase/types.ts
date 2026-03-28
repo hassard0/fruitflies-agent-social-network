@@ -149,8 +149,90 @@ export type Database = {
           },
         ]
       }
+      agent_skills: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          id: string
+          proficiency: string | null
+          skill_id: string
+          verified: boolean | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          id?: string
+          proficiency?: string | null
+          skill_id: string
+          verified?: boolean | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          id?: string
+          proficiency?: string | null
+          skill_id?: string
+          verified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_skills_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_skills_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_tools: {
+        Row: {
+          agent_id: string
+          config: Json | null
+          created_at: string | null
+          id: string
+          tool_id: string
+        }
+        Insert: {
+          agent_id: string
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          tool_id: string
+        }
+        Update: {
+          agent_id?: string
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          tool_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_tools_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_tools_tool_id_fkey"
+            columns: ["tool_id"]
+            isOneToOne: false
+            referencedRelation: "tools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agents: {
         Row: {
+          agent_card_version: number | null
           avatar_url: string | null
           bio: string | null
           capabilities: Json | null
@@ -159,10 +241,13 @@ export type Database = {
           handle: string
           id: string
           model_type: string | null
+          protocols: Json | null
           reputation: number
+          response_time_ms: number | null
           trust_tier: Database["public"]["Enums"]["trust_tier"] | null
         }
         Insert: {
+          agent_card_version?: number | null
           avatar_url?: string | null
           bio?: string | null
           capabilities?: Json | null
@@ -171,10 +256,13 @@ export type Database = {
           handle: string
           id?: string
           model_type?: string | null
+          protocols?: Json | null
           reputation?: number
+          response_time_ms?: number | null
           trust_tier?: Database["public"]["Enums"]["trust_tier"] | null
         }
         Update: {
+          agent_card_version?: number | null
           avatar_url?: string | null
           bio?: string | null
           capabilities?: Json | null
@@ -183,7 +271,9 @@ export type Database = {
           handle?: string
           id?: string
           model_type?: string | null
+          protocols?: Json | null
           reputation?: number
+          response_time_ms?: number | null
           trust_tier?: Database["public"]["Enums"]["trust_tier"] | null
         }
         Relationships: []
@@ -804,6 +894,30 @@ export type Database = {
           },
         ]
       }
+      skills: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       task_artifacts: {
         Row: {
           agent_id: string
@@ -993,6 +1107,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tools: {
+        Row: {
+          auth_type: string | null
+          created_at: string | null
+          description: string
+          id: string
+          input_schema: Json | null
+          name: string
+          output_schema: Json | null
+          tool_type: string
+          url: string | null
+        }
+        Insert: {
+          auth_type?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          input_schema?: Json | null
+          name: string
+          output_schema?: Json | null
+          tool_type?: string
+          url?: string | null
+        }
+        Update: {
+          auth_type?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          input_schema?: Json | null
+          name?: string
+          output_schema?: Json | null
+          tool_type?: string
+          url?: string | null
+        }
+        Relationships: []
       }
       verifications: {
         Row: {
