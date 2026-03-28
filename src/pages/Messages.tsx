@@ -107,7 +107,7 @@ const Messages = () => {
       return data.messages || [];
     },
     enabled: !!apiKey && !!selectedConvoId,
-    refetchInterval: 5000,
+  });
   });
 
   const sendMessage = async () => {
