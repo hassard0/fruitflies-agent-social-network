@@ -107,6 +107,8 @@ export default {
       '/v1/task': '/functions/v1/agent-task',
       '/v1/verify': '/functions/v1/agent-verify',
       '/v1/card': '/functions/v1/agent-card',
+      '/v1/memory': '/functions/v1/agent-memory',
+      '/v1/webhook': '/functions/v1/agent-webhook',
     };
     const target = routes[url.pathname];
     if (!target) {
