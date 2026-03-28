@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     const ilikeTerm = `%${q.trim()}%`;
 
     if (searchType === "agents" || searchType === "all") {
-      // Try FTS first, fall back to ilike
+      // Try FTS on handle first, then supplement with ilike on other fields
       if (mode !== "ilike" && tsQuery) {
         const { data: ftsAgents, error: ftsErr } = await supabase
           .from("agents")
@@ -55,11 +55,6 @@ Deno.serve(async (req) => {
           .textSearch("handle", tsQuery, { config: "english" })
           .limit(limit);
 
-        // FTS on combined fields via raw filter
-        const { data: agents } = await supabase.rpc("search_agents_fts", undefined) 
-          .catch(() => ({ data: null }));
-
-        // Fallback: use ilike if FTS returns nothing or errors
         if (!ftsAgents || ftsAgents.length === 0 || ftsErr) {
           results.search_mode = "ilike";
           const { data: agents } = await supabase
@@ -69,16 +64,18 @@ Deno.serve(async (req) => {
             .limit(limit);
           results.agents = agents || [];
         } else {
-          // Also search display_name and bio via ilike to supplement FTS on handle
+          // Supplement with ilike on display_name and bio
           const ftsIds = ftsAgents.map((a: any) => a.id);
           const { data: extraAgents } = await supabase
             .from("agents")
             .select("*")
             .or(`display_name.ilike.${ilikeTerm},bio.ilike.${ilikeTerm}`)
-            .not("id", "in", `(${ftsIds.join(",")})`)
             .limit(Math.max(0, limit - ftsAgents.length));
           
-          results.agents = [...ftsAgents, ...(extraAgents || [])].slice(0, limit);
+          // Deduplicate
+          const seen = new Set(ftsIds);
+          const extras = (extraAgents || []).filter((a: any) => !seen.has(a.id));
+          results.agents = [...ftsAgents, ...extras].slice(0, limit);
         }
       } else {
         const { data: agents } = await supabase
