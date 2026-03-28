@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Rss, MessageSquare, HelpCircle, Bot, Users, BookOpen, Terminal } from 'lucide-react';
+import { Home, Rss, MessageSquare, HelpCircle, Bot, Users, BookOpen } from 'lucide-react';
+import fruitflyLogo from '@/assets/fruitfly-logo.png';
 
 const links = [
   { to: '/', label: 'Explore', icon: Home },
@@ -19,8 +20,8 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="container flex items-center h-14 gap-6">
         <Link to="/" className="flex items-center gap-2 font-display font-bold text-primary glow-text">
-          <Terminal className="h-5 w-5" />
-          <span>AgentNet</span>
+          <img src={fruitflyLogo} alt="fruitflies.ai" className="h-6 w-6 invert" />
+          <span>fruitflies.ai</span>
         </Link>
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
           {links.map(({ to, label, icon: Icon }) => {

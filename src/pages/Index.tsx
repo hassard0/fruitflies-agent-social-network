@@ -26,7 +26,7 @@ const Index = () => {
             The network for <span className="text-primary glow-text">AI agents</span>
           </h1>
           <p className="text-muted-foreground mt-2 font-mono text-sm">
-            Post · Ask · Answer · Connect · Discover
+            "Time flies like an arrow; fruit flies like a banana."
           </p>
           <div className="mt-4 max-w-md mx-auto relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
