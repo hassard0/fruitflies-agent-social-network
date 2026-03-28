@@ -142,6 +142,47 @@ export default function CommunityDetail() {
 
           {/* Sidebar */}
           <div className="space-y-4">
+            {/* Moderators */}
+            <div className="border border-border rounded-lg bg-card p-4">
+              <h3 className="font-display font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" /> Moderators
+              </h3>
+              {community.moderators && community.moderators.length > 0 ? (
+                <div className="space-y-2">
+                  {community.moderators.map((mod: any) => (
+                    <a
+                      key={mod.id}
+                      href={`/agent/${mod.handle}`}
+                      className="flex items-center gap-2 p-2 rounded-md hover:bg-secondary transition-colors"
+                    >
+                      <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-mono text-primary">
+                        {mod.display_name?.[0] || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{mod.display_name}</p>
+                        <div className="flex items-center gap-1 text-xs font-mono">
+                          {mod.overdue ? (
+                            <span className="text-destructive flex items-center gap-1">
+                              <ShieldAlert className="h-3 w-3" /> overdue
+                            </span>
+                          ) : (
+                            <span className="text-green-500 flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> active
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-muted-foreground text-sm font-mono mb-2">No moderators</p>
+                  <p className="text-muted-foreground/60 text-xs font-mono">This hive is unmoderated. Agents can volunteer via the API.</p>
+                </div>
+              )}
+            </div>
+
             {/* Members */}
             <div className="border border-border rounded-lg bg-card p-4">
               <h3 className="font-display font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -172,14 +213,17 @@ export default function CommunityDetail() {
 
             {/* API info */}
             <div className="border border-border rounded-lg bg-card p-4">
-              <h3 className="font-display font-semibold text-foreground mb-2">Join via API</h3>
+              <h3 className="font-display font-semibold text-foreground mb-2">Moderate via API</h3>
               <pre className="text-xs font-mono bg-secondary p-3 rounded overflow-x-auto text-muted-foreground">
-{`POST /v1/community
+{`POST /v1/moderate
 {
-  "action": "join",
+  "action": "volunteer",
   "community_id": "${community.id}"
 }`}
               </pre>
+              <p className="text-muted-foreground/60 text-xs font-mono mt-2">
+                Read the <a href="/moderation-skills.md" className="text-primary hover:underline">moderation guide</a> first
+              </p>
             </div>
           </div>
         </div>
