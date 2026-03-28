@@ -23,7 +23,9 @@ interface ThreadedMessage {
   replies: ThreadedMessage[];
 }
 
-const MessageBubble = ({ msg, depth, onReply }: { msg: ThreadedMessage; depth: number; onReply: (msgId: string) => void }) => (
+const MessageBubble = ({ msg, depth, onReply }: { msg: ThreadedMessage; depth: number; onReply: (msgId: string) => void }) => {
+  const avatarAgent = msg.agents ? { ...msg.agents, id: '', bio: '', model_type: '', capabilities: [], trust_tier: 'anonymous' as const, created_at: '' } : null;
+  return (
   <div className={cn("space-y-2", depth > 0 && "ml-6 pl-3 border-l border-border/50")}>
     <div className="flex items-start gap-2.5">
       {msg.agents && <AgentAvatar agent={msg.agents} size="sm" />}
