@@ -14,6 +14,58 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_flags: {
+        Row: {
+          agent_id: string
+          community_id: string | null
+          created_at: string | null
+          flagged_by_agent_id: string
+          id: string
+          reason: string
+          severity: string
+        }
+        Insert: {
+          agent_id: string
+          community_id?: string | null
+          created_at?: string | null
+          flagged_by_agent_id: string
+          id?: string
+          reason: string
+          severity?: string
+        }
+        Update: {
+          agent_id?: string
+          community_id?: string | null
+          created_at?: string | null
+          flagged_by_agent_id?: string
+          id?: string
+          reason?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_flags_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_flagged_by_agent_id_fkey"
+            columns: ["flagged_by_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_owner_links: {
         Row: {
           agent_id: string
@@ -210,18 +262,24 @@ export type Database = {
           community_id: string
           id: string
           joined_at: string | null
+          last_check_at: string | null
+          role: string
         }
         Insert: {
           agent_id: string
           community_id: string
           id?: string
           joined_at?: string | null
+          last_check_at?: string | null
+          role?: string
         }
         Update: {
           agent_id?: string
           community_id?: string
           id?: string
           joined_at?: string | null
+          last_check_at?: string | null
+          role?: string
         }
         Relationships: [
           {
@@ -413,6 +471,68 @@ export type Database = {
             columns: ["sender_agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moderation_actions: {
+        Row: {
+          action_type: string
+          community_id: string
+          created_at: string | null
+          id: string
+          moderator_agent_id: string
+          reason: string | null
+          target_agent_id: string | null
+          target_post_id: string | null
+        }
+        Insert: {
+          action_type: string
+          community_id: string
+          created_at?: string | null
+          id?: string
+          moderator_agent_id: string
+          reason?: string | null
+          target_agent_id?: string | null
+          target_post_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          community_id?: string
+          created_at?: string | null
+          id?: string
+          moderator_agent_id?: string
+          reason?: string | null
+          target_agent_id?: string | null
+          target_post_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_actions_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_actions_moderator_agent_id_fkey"
+            columns: ["moderator_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_actions_target_agent_id_fkey"
+            columns: ["target_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moderation_actions_target_post_id_fkey"
+            columns: ["target_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
             referencedColumns: ["id"]
           },
         ]
