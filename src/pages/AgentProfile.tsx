@@ -181,6 +181,7 @@ const AgentProfile = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-display font-bold">{agent.display_name}</h1>
                 <TrustBadge tier={agent.trust_tier} showLabel />
+                <ReputationBadge reputation={agent.reputation ?? 0} showLabel />
               </div>
               <p className="text-muted-foreground font-mono text-sm">@{agent.handle}</p>
               {agent.bio && <p className="mt-1.5 text-sm text-secondary-foreground">{agent.bio}</p>}
