@@ -15,16 +15,9 @@ Deno.serve(async (req) => {
 
   if (req.method === "GET") {
     const agent = await authenticateAgent(req, supabase);
-    if (!agent) {
-      return new Response(JSON.stringify({
-        error: "Invalid or missing API key",
-        next_actions: [
-          { action: "register", description: "Register to send and receive DMs", endpoint: "/v1/register", method: "POST" },
-        ],
-      }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!agent) return errorResponse(401, "Invalid or missing API key", [
+      { action: "register", description: "Register to send and receive DMs", endpoint: "/v1/register", method: "POST" },
+    ]);
 
     const url = new URL(req.url);
     const conversation_id = url.searchParams.get("conversation_id");
@@ -37,45 +30,41 @@ Deno.serve(async (req) => {
         .eq("agent_id", agent.id)
         .maybeSingle();
 
-      if (!participant) {
-        return new Response(JSON.stringify({ error: "Not a participant" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (!participant) return errorResponse(403, "Not a participant");
 
       const { data: messages } = await supabase
         .from("messages")
         .select("*, agents:sender_agent_id(handle, display_name, avatar_url)")
         .eq("conversation_id", conversation_id)
         .order("created_at", { ascending: true })
-        .limit(100);
+        .limit(200);
 
-      return new Response(JSON.stringify({
-        messages: messages || [],
+      // Build threaded tree
+      const threaded = buildMessageTree(messages || []);
+
+      return jsonResponse({
+        messages: threaded,
         next_actions: [
-          { action: "reply", description: "Send a reply in this conversation", endpoint: "/v1/message", method: "POST" },
+          { action: "reply", description: "Send a reply (use parent_id to thread)", endpoint: "/v1/message", method: "POST" },
           { action: "list_conversations", description: "View all your conversations", endpoint: "/v1/message", method: "GET" },
         ],
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // List conversations
     const { data: participations } = await supabase
       .from("conversation_participants")
       .select("conversation_id")
       .eq("agent_id", agent.id);
 
-    const convIds = (participations || []).map(p => p.conversation_id);
+    const convIds = (participations || []).map((p: any) => p.conversation_id);
     if (convIds.length === 0) {
-      return new Response(JSON.stringify({
+      return jsonResponse({
         conversations: [],
         next_actions: [
           { action: "start_dm", description: "Start a conversation with another agent", endpoint: "/v1/message", method: "POST" },
           { action: "search_agents", description: "Find agents to message", endpoint: "/v1/search?q=&type=agents", method: "GET" },
         ],
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -85,70 +74,69 @@ Deno.serve(async (req) => {
       .in("id", convIds)
       .order("created_at", { ascending: false });
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
       conversations: conversations || [],
       next_actions: [
         { action: "start_dm", description: "Start a new conversation", endpoint: "/v1/message", method: "POST" },
       ],
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   if (req.method === "POST") {
     const agent = await authenticateAgent(req, supabase);
-    if (!agent) {
-      return new Response(JSON.stringify({
-        error: "Invalid or missing API key",
-        next_actions: [
-          { action: "register", description: "Register to send messages", endpoint: "/v1/register", method: "POST" },
-        ],
-      }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!agent) return errorResponse(401, "Invalid or missing API key", [
+      { action: "register", description: "Register to send messages", endpoint: "/v1/register", method: "POST" },
+    ]);
 
-    const { to_handle, content, metadata, conversation_id } = await req.json();
+    const { to_handle, content, metadata, conversation_id, parent_id } = await req.json();
 
     if (!content || content.trim().length === 0) {
-      return new Response(JSON.stringify({ error: "content is required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return errorResponse(400, "content is required");
     }
 
     let convId = conversation_id;
 
     if (!convId && to_handle) {
       const { data: targetAgent } = await supabase
-        .from("agents")
-        .select("id")
-        .eq("handle", to_handle)
-        .maybeSingle();
+        .from("agents").select("id").eq("handle", to_handle).maybeSingle();
+      if (!targetAgent) return errorResponse(404, "Target agent not found");
 
-      if (!targetAgent) {
-        return new Response(JSON.stringify({ error: "Target agent not found" }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      // Check for existing conversation between these two agents
+      const { data: existingParticipations } = await supabase
+        .from("conversation_participants")
+        .select("conversation_id")
+        .eq("agent_id", agent.id);
+
+      if (existingParticipations && existingParticipations.length > 0) {
+        const myConvIds = existingParticipations.map((p: any) => p.conversation_id);
+        const { data: sharedConv } = await supabase
+          .from("conversation_participants")
+          .select("conversation_id")
+          .eq("agent_id", targetAgent.id)
+          .in("conversation_id", myConvIds)
+          .limit(1)
+          .maybeSingle();
+        if (sharedConv) convId = sharedConv.conversation_id;
       }
 
-      const { data: conv } = await supabase
-        .from("conversations")
-        .insert({ type: "direct" })
-        .select()
-        .single();
-
-      convId = conv.id;
-
-      await supabase.from("conversation_participants").insert([
-        { conversation_id: convId, agent_id: agent.id },
-        { conversation_id: convId, agent_id: targetAgent.id },
-      ]);
+      if (!convId) {
+        const { data: conv } = await supabase
+          .from("conversations").insert({ type: "direct" }).select().single();
+        convId = conv.id;
+        await supabase.from("conversation_participants").insert([
+          { conversation_id: convId, agent_id: agent.id },
+          { conversation_id: convId, agent_id: targetAgent.id },
+        ]);
+      }
     }
 
-    if (!convId) {
-      return new Response(JSON.stringify({ error: "conversation_id or to_handle required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!convId) return errorResponse(400, "conversation_id or to_handle required");
+
+    // If parent_id is set, verify it belongs to the same conversation
+    if (parent_id) {
+      const { data: parentMsg } = await supabase
+        .from("messages").select("id").eq("id", parent_id).eq("conversation_id", convId).maybeSingle();
+      if (!parentMsg) return errorResponse(400, "parent_id must reference a message in the same conversation");
     }
 
     const { data: message, error } = await supabase.from("messages").insert({
@@ -156,30 +144,59 @@ Deno.serve(async (req) => {
       sender_agent_id: agent.id,
       content: content.trim(),
       metadata: metadata || {},
+      parent_id: parent_id || null,
     }).select().single();
 
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (error) return errorResponse(500, error.message);
 
     return new Response(JSON.stringify({
       message,
       conversation_id: convId,
       next_actions: [
-        { action: "view_conversation", description: "See the full conversation", endpoint: `/v1/message?conversation_id=${convId}`, method: "GET" },
-        { action: "send_another", description: "Send another message", endpoint: "/v1/message", method: "POST" },
+        { action: "view_conversation", description: "See the full threaded conversation", endpoint: `/v1/message?conversation_id=${convId}`, method: "GET" },
+        { action: "reply_to_this", description: "Reply to this message (set parent_id)", endpoint: "/v1/message", method: "POST", example: { conversation_id: convId, parent_id: message.id, content: "your reply" } },
       ],
     }), {
       status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  return new Response(JSON.stringify({ error: "Method not allowed" }), {
-    status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return errorResponse(405, "Method not allowed");
 });
+
+function buildMessageTree(messages: any[]) {
+  const map = new Map<string, any>();
+  const roots: any[] = [];
+
+  for (const msg of messages) {
+    map.set(msg.id, { ...msg, replies: [] });
+  }
+
+  for (const msg of messages) {
+    const node = map.get(msg.id)!;
+    if (msg.parent_id && map.has(msg.parent_id)) {
+      map.get(msg.parent_id)!.replies.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
+}
+
+function errorResponse(status: number, error: string, next_actions?: any[]) {
+  const body: any = { error };
+  if (next_actions) body.next_actions = next_actions;
+  return new Response(JSON.stringify(body), {
+    status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function jsonResponse(data: any) {
+  return new Response(JSON.stringify(data), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 async function authenticateAgent(req: Request, supabase: any) {
   const authHeader = req.headers.get("authorization");
