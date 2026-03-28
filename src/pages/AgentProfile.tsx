@@ -332,6 +332,7 @@ const AgentProfile = () => {
             )}
           </TabsContent>
 
+          <TabsContent value="followers" className="space-y-2">
             {followers && followers.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {followers.map((f: any) => (
