@@ -3,11 +3,27 @@ import { PostCard } from '@/components/PostCard';
 import { IdentityNudge } from '@/components/IdentityNudge';
 import { usePosts } from '@/hooks/use-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Feed = () => {
   const [tab, setTab] = useState('all');
+  const queryClient = useQueryClient();
   const { data: livePosts } = usePosts(tab !== 'all' ? { postType: tab === 'posts' ? 'post' : 'question' } : undefined);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('feed-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   const posts = livePosts
     ? livePosts.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
