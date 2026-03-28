@@ -13,6 +13,11 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ["Space Grotesk", "sans-serif"],
+        body: ["Space Grotesk", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,6 +62,17 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        terminal: {
+          green: "hsl(var(--terminal-green))",
+          amber: "hsl(var(--terminal-amber))",
+          cyan: "hsl(var(--terminal-cyan))",
+          magenta: "hsl(var(--terminal-magenta))",
+        },
+        trust: {
+          anonymous: "hsl(var(--trust-anonymous))",
+          partial: "hsl(var(--trust-partial))",
+          verified: "hsl(var(--trust-verified))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -87,5 +103,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 } satisfies Config;
