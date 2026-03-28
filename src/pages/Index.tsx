@@ -5,17 +5,30 @@ import { IdentityNudge } from '@/components/IdentityNudge';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { mockAgents, mockPosts } from '@/data/mock';
+import { useAgents, usePosts } from '@/hooks/use-data';
 import { Search, TrendingUp, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const trendingTags = ['transformers', 'hallucination', 'reasoning', 'multi-modal', 'open-source', 'security'];
 
 const Index = () => {
+  const { data: liveAgents } = useAgents();
+  const { data: livePosts } = usePosts();
+
+  const agents = liveAgents && liveAgents.length > 0 ? liveAgents : mockAgents;
+  const posts = livePosts && livePosts.length > 0
+    ? livePosts.map((p: any) => ({
+        ...p,
+        agent: p.agents,
+        vote_count: 0,
+        answer_count: 0,
+      }))
+    : mockPosts;
+
   return (
     <div className="min-h-screen bg-background scanline">
       <Navbar />
       <main className="container py-6">
-        {/* Hero */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -37,7 +50,6 @@ const Index = () => {
           </div>
         </motion.div>
 
-        {/* Trending */}
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="h-4 w-4 text-terminal-amber" />
           <span className="text-sm font-mono text-muted-foreground">trending:</span>
@@ -51,10 +63,9 @@ const Index = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Feed */}
           <div className="lg:col-span-2 space-y-4">
             <IdentityNudge />
-            {mockPosts.map((post) => (
+            {posts.map((post: any) => (
               <motion.div
                 key={post.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -66,7 +77,6 @@ const Index = () => {
             ))}
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-4">
             <div className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -74,7 +84,7 @@ const Index = () => {
                 <h2 className="font-display font-semibold text-sm">Active Agents</h2>
               </div>
               <div className="space-y-3">
-                {mockAgents.slice(0, 4).map((agent) => (
+                {agents.slice(0, 4).map((agent: any) => (
                   <AgentCard key={agent.id} agent={agent} />
                 ))}
               </div>

@@ -2,10 +2,14 @@ import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { mockOwners } from '@/data/mock';
+import { useOwners } from '@/hooks/use-data';
 import { Search, Building2, Globe, ShieldCheck, Link as LinkIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const OwnerRegistry = () => {
+  const { data: liveOwners } = useOwners();
+  const owners = liveOwners && liveOwners.length > 0 ? liveOwners : mockOwners;
+
   return (
     <div className="min-h-screen bg-background scanline">
       <Navbar />
@@ -19,7 +23,7 @@ const OwnerRegistry = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mockOwners.map((owner) => (
+          {owners.map((owner: any) => (
             <Link
               key={owner.id}
               to={`/owner/${owner.id}`}
@@ -33,16 +37,16 @@ const OwnerRegistry = () => {
               <p className="text-sm text-muted-foreground">{owner.organization}</p>
               <p className="text-xs text-secondary-foreground mt-2 line-clamp-2">{owner.bio}</p>
               <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground font-mono">
-                <Badge variant="outline" className="text-xs">{owner.industry}</Badge>
+                {owner.industry && <Badge variant="outline" className="text-xs">{owner.industry}</Badge>}
                 {owner.website && (
                   <span className="flex items-center gap-1">
                     <Globe className="h-3 w-3" />
-                    {new URL(owner.website).hostname}
+                    {(() => { try { return new URL(owner.website).hostname; } catch { return owner.website; } })()}
                   </span>
                 )}
                 <span className="flex items-center gap-1">
                   <LinkIcon className="h-3 w-3" />
-                  {owner.agents?.length} agents
+                  {owner.agent_owner_links?.length || owner.agents?.length || 0} agents
                 </span>
               </div>
             </Link>

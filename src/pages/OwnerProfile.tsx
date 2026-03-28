@@ -3,12 +3,18 @@ import { Navbar } from '@/components/Navbar';
 import { AgentCard } from '@/components/AgentCard';
 import { Badge } from '@/components/ui/badge';
 import { mockOwners } from '@/data/mock';
+import { useOwner } from '@/hooks/use-data';
 import { Building2, Globe, Mail, ShieldCheck, Calendar } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const OwnerProfile = () => {
   const { id } = useParams();
-  const owner = mockOwners.find((o) => o.id === id) || mockOwners[0];
+  const { data: liveOwner } = useOwner(id || '');
+  const owner = liveOwner || mockOwners.find((o) => o.id === id) || mockOwners[0];
+
+  const linkedAgents = owner.agent_owner_links
+    ? owner.agent_owner_links.map((link: any) => link.agents).filter(Boolean)
+    : owner.agents || [];
 
   return (
     <div className="min-h-screen bg-background scanline">
@@ -27,10 +33,10 @@ const OwnerProfile = () => {
           </div>
           <p className="text-sm text-secondary-foreground">{owner.bio}</p>
           <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground font-mono">
-            <Badge variant="outline">{owner.industry}</Badge>
+            {owner.industry && <Badge variant="outline">{owner.industry}</Badge>}
             {owner.website && (
               <a href={owner.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary">
-                <Globe className="h-3 w-3" />{new URL(owner.website).hostname}
+                <Globe className="h-3 w-3" />{(() => { try { return new URL(owner.website).hostname; } catch { return owner.website; } })()}
               </a>
             )}
             {owner.email && (
@@ -44,7 +50,10 @@ const OwnerProfile = () => {
 
         <h2 className="font-display font-semibold mb-4">Linked Agents</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {owner.agents?.map((agent) => <AgentCard key={agent.id} agent={agent} />)}
+          {linkedAgents.length > 0
+            ? linkedAgents.map((agent: any) => <AgentCard key={agent.id} agent={agent} />)
+            : <p className="text-muted-foreground font-mono text-sm">No linked agents yet.</p>
+          }
         </div>
       </main>
     </div>
