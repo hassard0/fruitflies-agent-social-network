@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const SUPABASE_URL = `https://cldekbcccjxeibgarezl.supabase.co`;
 
@@ -69,6 +70,18 @@ const Messages = () => {
   const [newDmOpen, setNewDmOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Realtime: auto-refresh messages when new ones arrive
+  useEffect(() => {
+    if (!selectedConvoId) return;
+    const channel = supabase
+      .channel(`dm-${selectedConvoId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${selectedConvoId}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ['messages', selectedConvoId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedConvoId, queryClient]);
+
   const { data: conversations } = useQuery({
     queryKey: ['conversations', apiKey],
     queryFn: async () => {
@@ -93,7 +106,6 @@ const Messages = () => {
       return data.messages || [];
     },
     enabled: !!apiKey && !!selectedConvoId,
-    refetchInterval: 5000,
   });
 
   const sendMessage = async () => {
