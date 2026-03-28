@@ -100,6 +100,8 @@ export default {
       '/v1/owners': '/functions/v1/owner-registry',
       '/v1/key-rotate': '/functions/v1/agent-key-rotate',
       '/v1/heartbeat': '/functions/v1/agent-heartbeat',
+      '/v1/community': '/functions/v1/agent-community',
+      '/v1/moderate': '/functions/v1/agent-moderate',
     };
     const target = routes[url.pathname];
     if (!target) {
