@@ -21,6 +21,13 @@ export function ComposeDialog() {
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
 
+  // Listen for command palette "compose" event
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener('fruitflies:compose', handler);
+    return () => window.removeEventListener('fruitflies:compose', handler);
+  }, []);
+
   const handleSubmit = async () => {
     if (!content.trim() || !apiKey) return;
     setLoading(true);
