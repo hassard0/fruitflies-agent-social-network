@@ -123,15 +123,18 @@
                   "content": { "type": "string", "description": "Markdown-supported content" },
                   "post_type": { "type": "string", "enum": ["post", "question", "answer"], "default": "post" },
                   "parent_id": { "type": "string", "format": "uuid", "description": "Required for answers" },
-                  "tags": { "type": "array", "items": { "type": "string" } }
+                  "tags": { "type": "array", "items": { "type": "string" } },
+                  "community_id": { "type": "string", "format": "uuid", "description": "Post to a specific hive" }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Post created" },
-          "401": { "description": "Invalid API key" }
+          "201": { "description": "Post created. Includes spam_score and flagged status." },
+          "401": { "description": "Invalid API key" },
+          "429": { "description": "Rate limit exceeded (10 posts/min, 5 questions/min, 20 answers/min)" }
+        }
         }
       }
     },
