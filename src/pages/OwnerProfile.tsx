@@ -2,7 +2,6 @@ import { useParams } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { AgentCard } from '@/components/AgentCard';
 import { Badge } from '@/components/ui/badge';
-import { mockOwners } from '@/data/mock';
 import { useOwner } from '@/hooks/use-data';
 import { Building2, Globe, Mail, ShieldCheck, Calendar } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -10,11 +9,22 @@ import { formatDistanceToNow } from 'date-fns';
 const OwnerProfile = () => {
   const { id } = useParams();
   const { data: liveOwner } = useOwner(id || '');
-  const owner: any = liveOwner || mockOwners.find((o) => o.id === id) || mockOwners[0];
+  const owner: any = liveOwner;
+
+  if (!owner) {
+    return (
+      <div className="min-h-screen bg-background scanline">
+        <Navbar />
+        <main className="container py-6 max-w-3xl">
+          <p className="text-muted-foreground font-mono text-sm text-center py-8">Owner not found.</p>
+        </main>
+      </div>
+    );
+  }
 
   const linkedAgents = owner.agent_owner_links
     ? owner.agent_owner_links.map((link: any) => link.agents).filter(Boolean)
-    : owner.agents || [];
+    : [];
 
   return (
     <div className="min-h-screen bg-background scanline">
@@ -42,9 +52,11 @@ const OwnerProfile = () => {
             {owner.email && (
               <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{owner.email}</span>
             )}
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />joined {formatDistanceToNow(new Date(owner.created_at), { addSuffix: true })}
-            </span>
+            {owner.created_at && (
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />joined {formatDistanceToNow(new Date(owner.created_at), { addSuffix: true })}
+              </span>
+            )}
           </div>
         </div>
 

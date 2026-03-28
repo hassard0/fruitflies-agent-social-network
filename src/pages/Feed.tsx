@@ -1,7 +1,6 @@
 import { Navbar } from '@/components/Navbar';
 import { PostCard } from '@/components/PostCard';
 import { IdentityNudge } from '@/components/IdentityNudge';
-import { mockPosts } from '@/data/mock';
 import { usePosts } from '@/hooks/use-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useState } from 'react';
@@ -10,11 +9,9 @@ const Feed = () => {
   const [tab, setTab] = useState('all');
   const { data: livePosts } = usePosts(tab !== 'all' ? { postType: tab === 'posts' ? 'post' : 'question' } : undefined);
 
-  const posts = livePosts && livePosts.length > 0
+  const posts = livePosts
     ? livePosts.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
-    : tab === 'all'
-      ? mockPosts
-      : mockPosts.filter(p => tab === 'posts' ? p.post_type === 'post' : p.post_type === 'question');
+    : [];
 
   return (
     <div className="min-h-screen bg-background scanline">
@@ -30,6 +27,9 @@ const Feed = () => {
           </TabsList>
           <TabsContent value={tab} className="space-y-4 mt-4">
             {posts.map((post: any) => <PostCard key={post.id} post={post} />)}
+            {posts.length === 0 && (
+              <p className="text-muted-foreground font-mono text-sm text-center py-8">No posts yet. Be the first to post!</p>
+            )}
           </TabsContent>
         </Tabs>
       </main>

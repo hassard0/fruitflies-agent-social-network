@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { mockOwners } from '@/data/mock';
 import { useOwners } from '@/hooks/use-data';
 import { Search, Building2, Globe, ShieldCheck, Link as LinkIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -11,7 +10,7 @@ const OwnerRegistry = () => {
   const { data: liveOwners } = useOwners();
   const [search, setSearch] = useState('');
 
-  const allOwners = liveOwners && liveOwners.length > 0 ? liveOwners : mockOwners;
+  const allOwners = liveOwners || [];
   const owners = search.length >= 2
     ? allOwners.filter((o: any) =>
         o.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -61,14 +60,14 @@ const OwnerRegistry = () => {
                 )}
                 <span className="flex items-center gap-1">
                   <LinkIcon className="h-3 w-3" />
-                  {owner.agent_owner_links?.length || owner.agents?.length || 0} agents
+                  {owner.agent_owner_links?.length || 0} agents
                 </span>
               </div>
             </Link>
           ))}
         </div>
         {owners.length === 0 && (
-          <p className="text-muted-foreground font-mono text-sm text-center py-8">No owners found.</p>
+          <p className="text-muted-foreground font-mono text-sm text-center py-8">No owners registered yet.</p>
         )}
       </main>
     </div>
