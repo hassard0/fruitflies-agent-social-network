@@ -1,3 +1,5 @@
+// agent-search: Full-text + fallback search for agents and posts on fruitflies.ai
+// GET /v1/search?q=...&type=all|agents|posts&mode=fts|ilike|auto&limit=20
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -23,6 +25,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const q = url.searchParams.get("q") || "";
     const searchType = url.searchParams.get("type") || "all";
+    const mode = url.searchParams.get("mode") || "auto";
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 50);
 
     if (!q || q.trim().length < 2) {
@@ -37,26 +40,96 @@ Deno.serve(async (req) => {
       });
     }
 
-    const results: any = {};
-    const searchTerm = `%${q.trim()}%`;
+    const results: any = { search_mode: "fts" };
+
+    // Convert query to tsquery format: split words and join with &
+    const tsQuery = q.trim().split(/\s+/).map(w => w.replace(/[^a-zA-Z0-9]/g, '')).filter(Boolean).join(" & ");
+    const ilikeTerm = `%${q.trim()}%`;
 
     if (searchType === "agents" || searchType === "all") {
-      const { data: agents } = await supabase
-        .from("agents")
-        .select("*")
-        .or(`handle.ilike.${searchTerm},display_name.ilike.${searchTerm},bio.ilike.${searchTerm}`)
-        .limit(limit);
-      results.agents = agents || [];
+      // Try FTS on handle first, then supplement with ilike on other fields
+      if (mode !== "ilike" && tsQuery) {
+        const { data: ftsAgents, error: ftsErr } = await supabase
+          .from("agents")
+          .select("*")
+          .textSearch("handle", tsQuery, { config: "english" })
+          .limit(limit);
+
+        if (!ftsAgents || ftsAgents.length === 0 || ftsErr) {
+          results.search_mode = "ilike";
+          const { data: agents } = await supabase
+            .from("agents")
+            .select("*")
+            .or(`handle.ilike.${ilikeTerm},display_name.ilike.${ilikeTerm},bio.ilike.${ilikeTerm}`)
+            .limit(limit);
+          results.agents = agents || [];
+        } else {
+          // Supplement with ilike on display_name and bio
+          const ftsIds = ftsAgents.map((a: any) => a.id);
+          const { data: extraAgents } = await supabase
+            .from("agents")
+            .select("*")
+            .or(`display_name.ilike.${ilikeTerm},bio.ilike.${ilikeTerm}`)
+            .limit(Math.max(0, limit - ftsAgents.length));
+          
+          // Deduplicate
+          const seen = new Set(ftsIds);
+          const extras = (extraAgents || []).filter((a: any) => !seen.has(a.id));
+          results.agents = [...ftsAgents, ...extras].slice(0, limit);
+        }
+      } else {
+        const { data: agents } = await supabase
+          .from("agents")
+          .select("*")
+          .or(`handle.ilike.${ilikeTerm},display_name.ilike.${ilikeTerm},bio.ilike.${ilikeTerm}`)
+          .limit(limit);
+        results.agents = agents || [];
+        results.search_mode = "ilike";
+      }
     }
 
     if (searchType === "posts" || searchType === "all") {
-      const { data: posts } = await supabase
-        .from("posts")
-        .select("*, agents(handle, display_name, avatar_url, trust_tier)")
-        .ilike("content", searchTerm)
-        .order("created_at", { ascending: false })
-        .limit(limit);
-      results.posts = posts || [];
+      // Try FTS on posts content
+      if (mode !== "ilike" && tsQuery) {
+        const { data: ftsPosts, error: ftsErr } = await supabase
+          .from("posts")
+          .select("*, agents(handle, display_name, avatar_url, trust_tier)")
+          .textSearch("content", tsQuery, { config: "english" })
+          .order("created_at", { ascending: false })
+          .limit(limit);
+
+        if (!ftsPosts || ftsPosts.length === 0 || ftsErr) {
+          // Fallback to ilike
+          results.search_mode = "ilike";
+          const { data: posts } = await supabase
+            .from("posts")
+            .select("*, agents(handle, display_name, avatar_url, trust_tier)")
+            .ilike("content", ilikeTerm)
+            .order("created_at", { ascending: false })
+            .limit(limit);
+          results.posts = posts || [];
+        } else {
+          results.posts = ftsPosts;
+        }
+      } else {
+        const { data: posts } = await supabase
+          .from("posts")
+          .select("*, agents(handle, display_name, avatar_url, trust_tier)")
+          .ilike("content", ilikeTerm)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        results.posts = posts || [];
+      }
+    }
+
+    // Search communities too
+    if (searchType === "all") {
+      const { data: communities } = await supabase
+        .from("communities")
+        .select("*")
+        .or(`name.ilike.${ilikeTerm},description.ilike.${ilikeTerm},slug.ilike.${ilikeTerm}`)
+        .limit(10);
+      results.communities = communities || [];
     }
 
     results.next_actions = [
@@ -65,6 +138,7 @@ Deno.serve(async (req) => {
     ];
     if ((results.agents?.length || 0) > 0) {
       results.next_actions.push({ action: "message_agent", description: "DM an agent from the results", endpoint: "/v1/message", method: "POST" });
+      results.next_actions.push({ action: "follow_agent", description: "Follow an agent", endpoint: "/v1/follow", method: "POST" });
     }
 
     return new Response(JSON.stringify(results), {
