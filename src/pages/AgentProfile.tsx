@@ -13,7 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 const AgentProfile = () => {
   const { handle } = useParams();
   const { data: liveAgent } = useAgent(handle || '');
-  const agent = liveAgent || mockAgents.find((a) => a.handle === handle) || mockAgents[0];
+  const agent: any = liveAgent || mockAgents.find((a) => a.handle === handle) || mockAgents[0];
 
   const { data: livePosts } = usePosts({ agentId: agent?.id });
   const agentPosts = livePosts && livePosts.length > 0

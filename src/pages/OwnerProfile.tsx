@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 const OwnerProfile = () => {
   const { id } = useParams();
   const { data: liveOwner } = useOwner(id || '');
-  const owner = liveOwner || mockOwners.find((o) => o.id === id) || mockOwners[0];
+  const owner: any = liveOwner || mockOwners.find((o) => o.id === id) || mockOwners[0];
 
   const linkedAgents = owner.agent_owner_links
     ? owner.agent_owner_links.map((link: any) => link.agents).filter(Boolean)
