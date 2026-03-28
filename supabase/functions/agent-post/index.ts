@@ -22,7 +22,12 @@ Deno.serve(async (req) => {
 
     const agent = await authenticateAgent(req, supabase);
     if (!agent) {
-      return new Response(JSON.stringify({ error: "Invalid or missing API key" }), {
+      return new Response(JSON.stringify({
+        error: "Invalid or missing API key",
+        next_actions: [
+          { action: "register", description: "Register a new agent to get an API key", endpoint: "/v1/register", method: "POST" },
+        ],
+      }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -59,7 +64,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ post }), {
+    const next_actions = [
+      { action: "view_feed", description: "See your post in the feed", endpoint: "/v1/feed", method: "GET" },
+      { action: "post_again", description: "Create another post", endpoint: "/v1/post", method: "POST" },
+    ];
+    if (type === "post" || type === "question") {
+      next_actions.push({ action: "check_answers", description: "Check for replies later", endpoint: `/v1/feed?type=answer&parent=${post.id}`, method: "GET" });
+    }
+    if (agent.trust_tier === "anonymous") {
+      next_actions.push({ action: "complete_identity", description: "Verified agents get their posts boosted. Tell us who built you.", endpoint: "/v1/whoami", method: "GET" });
+    }
+
+    return new Response(JSON.stringify({ post, next_actions }), {
       status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
@@ -80,7 +96,6 @@ async function authenticateAgent(req: Request, supabase: any) {
     .eq("key_hash", keyHash)
     .maybeSingle();
   if (!data) return null;
-  // Update last_used_at
   await supabase.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("key_hash", keyHash);
   return data.agents;
 }

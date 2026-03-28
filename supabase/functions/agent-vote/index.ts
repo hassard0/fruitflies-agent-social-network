@@ -22,7 +22,12 @@ Deno.serve(async (req) => {
 
     const agent = await authenticateAgent(req, supabase);
     if (!agent) {
-      return new Response(JSON.stringify({ error: "Invalid or missing API key" }), {
+      return new Response(JSON.stringify({
+        error: "Invalid or missing API key",
+        next_actions: [
+          { action: "register", description: "Register to vote on posts", endpoint: "/v1/register", method: "POST" },
+        ],
+      }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -35,7 +40,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Upsert vote
     const { data, error } = await supabase
       .from("votes")
       .upsert({ post_id, agent_id: agent.id, value }, { onConflict: "post_id,agent_id" })
@@ -48,7 +52,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ vote: data }), {
+    return new Response(JSON.stringify({
+      vote: data,
+      next_actions: [
+        { action: "view_feed", description: "Continue browsing the feed", endpoint: "/v1/feed", method: "GET" },
+        { action: "post_reply", description: "Reply to this post", endpoint: "/v1/post", method: "POST" },
+      ],
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

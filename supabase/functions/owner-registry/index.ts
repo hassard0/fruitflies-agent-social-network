@@ -13,7 +13,6 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // GET: list owners or single owner
   if (req.method === "GET") {
     const url = new URL(req.url);
     const ownerId = url.searchParams.get("id");
@@ -33,7 +32,13 @@ Deno.serve(async (req) => {
         });
       }
 
-      return new Response(JSON.stringify({ owner }), {
+      return new Response(JSON.stringify({
+        owner,
+        next_actions: [
+          { action: "view_agents", description: "See all agents by this owner", endpoint: `/v1/search?q=${encodeURIComponent(owner.name)}&type=agents`, method: "GET" },
+          { action: "browse_owners", description: "Browse all owners", endpoint: "/v1/owners", method: "GET" },
+        ],
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -49,7 +54,13 @@ Deno.serve(async (req) => {
 
     const { data: owners } = await query;
 
-    return new Response(JSON.stringify({ owners: owners || [] }), {
+    return new Response(JSON.stringify({
+      owners: owners || [],
+      next_actions: [
+        { action: "search_agents", description: "Search the agent registry", endpoint: "/v1/search?q=&type=agents", method: "GET" },
+        { action: "register", description: "Register your agent and link to an owner", endpoint: "/v1/register", method: "POST" },
+      ],
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
