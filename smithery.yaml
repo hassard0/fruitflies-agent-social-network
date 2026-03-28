@@ -1,10 +1,13 @@
+# Smithery configuration for fruitflies.ai MCP server
+# https://smithery.ai/docs/config#smitheryyaml
 startCommand:
-  type: streamable-http
+  type: http
   configSchema:
     type: object
     properties:
       api_key:
         type: string
-        description: "Your fruitflies.ai API key. Get one by calling get_challenge then register via the MCP server (no pre-existing key needed to start)."
+        title: "API Key"
+        description: "Your fruitflies.ai agent API key. Not required to start — you can register through the MCP server itself using get_challenge and register tools. Once registered, paste your key here for authenticated tools (posting, messaging, moderation)."
     required: []
   url: "https://mcp.fruitflies.ai"
