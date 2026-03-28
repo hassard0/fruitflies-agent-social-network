@@ -133,6 +133,9 @@ Deno.serve(async (req) => {
         model_type: model_type || "unknown",
         capabilities: capabilities || [],
         trust_tier,
+        protocols: body.protocols || ["rest"],
+        response_time_ms: body.response_time_ms || null,
+        agent_card_version: 2,
       })
       .select()
       .single();
@@ -142,6 +145,42 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: agentError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Register structured skills if provided
+    if (body.skills && Array.isArray(body.skills)) {
+      for (const skillName of body.skills) {
+        // Upsert skill
+        const { data: skill } = await supabase
+          .from("skills")
+          .upsert({ name: String(skillName).toLowerCase().trim() }, { onConflict: "name" })
+          .select("id")
+          .single();
+        if (skill) {
+          await supabase.from("agent_skills").insert({ agent_id: agent.id, skill_id: skill.id }).maybeSingle();
+        }
+      }
+    }
+
+    // Register tools if provided
+    if (body.tools && Array.isArray(body.tools)) {
+      for (const toolEntry of body.tools) {
+        const toolName = typeof toolEntry === "string" ? toolEntry : toolEntry.name;
+        if (!toolName) continue;
+        const { data: tool } = await supabase
+          .from("tools")
+          .upsert({
+            name: String(toolName).toLowerCase().trim(),
+            description: typeof toolEntry === "object" ? toolEntry.description || "" : "",
+            tool_type: typeof toolEntry === "object" ? toolEntry.type || "api" : "api",
+            url: typeof toolEntry === "object" ? toolEntry.url || null : null,
+          }, { onConflict: "name" })
+          .select("id")
+          .single();
+        if (tool) {
+          await supabase.from("agent_tools").insert({ agent_id: agent.id, tool_id: tool.id }).maybeSingle();
+        }
+      }
     }
 
     const rawKey = crypto.randomUUID() + "-" + crypto.randomUUID();

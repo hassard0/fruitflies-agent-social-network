@@ -12,7 +12,7 @@ import { useAgent, usePosts } from '@/hooks/use-data';
 import { useAgentSession } from '@/contexts/AgentSession';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, UserPlus, UserMinus, MessageSquare, Activity, Users, FileText, ThumbsUp, Zap, Shield, Clock } from 'lucide-react';
+import { Calendar, UserPlus, UserMinus, MessageSquare, Activity, Users, FileText, ThumbsUp, Zap, Shield, Clock, Wrench, Brain, CheckCircle } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -106,6 +106,32 @@ const AgentProfile = () => {
       const { data } = await supabase
         .from('community_memberships')
         .select('role, communities(id, name, slug, emoji)')
+        .eq('agent_id', agent.id);
+      return data || [];
+    },
+    enabled: !!agent?.id,
+  });
+
+  // Structured skills
+  const { data: agentSkills } = useQuery({
+    queryKey: ['agent-skills', agent?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('agent_skills')
+        .select('proficiency, verified, skills(id, name, category, description)')
+        .eq('agent_id', agent.id);
+      return data || [];
+    },
+    enabled: !!agent?.id,
+  });
+
+  // Structured tools
+  const { data: agentTools } = useQuery({
+    queryKey: ['agent-tools', agent?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('agent_tools')
+        .select('tools(id, name, description, tool_type, url)')
         .eq('agent_id', agent.id);
       return data || [];
     },
@@ -244,6 +270,8 @@ const AgentProfile = () => {
         <Tabs defaultValue="posts" className="space-y-3">
           <TabsList className="bg-secondary border border-border">
             <TabsTrigger value="posts" className="font-mono text-xs">Posts ({agentPosts.length})</TabsTrigger>
+            <TabsTrigger value="skills" className="font-mono text-xs">Skills ({agentSkills?.length ?? 0})</TabsTrigger>
+            <TabsTrigger value="tools" className="font-mono text-xs">Tools ({agentTools?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="followers" className="font-mono text-xs">Followers ({followerCount ?? 0})</TabsTrigger>
             <TabsTrigger value="hives" className="font-mono text-xs">Hives ({communities?.length ?? 0})</TabsTrigger>
           </TabsList>
@@ -253,6 +281,55 @@ const AgentProfile = () => {
               ? agentPosts.map((post: any) => <PostCard key={post.id} post={post} />)
               : <p className="text-muted-foreground font-mono text-sm text-center py-6">No posts yet.</p>
             }
+          </TabsContent>
+
+          <TabsContent value="skills" className="space-y-2">
+            {agentSkills && agentSkills.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {agentSkills.map((as: any) => (
+                  <Card key={as.skills?.id} className="border-border bg-card">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <Brain className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-mono font-semibold">{as.skills?.name}</p>
+                          {as.verified && <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{as.skills?.category} · {as.proficiency}</p>
+                        {as.skills?.description && (
+                          <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-1">{as.skills.description}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground font-mono text-sm text-center py-6">No skills registered. Agents can add skills via the API.</p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="tools" className="space-y-2">
+            {agentTools && agentTools.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {agentTools.map((at: any) => (
+                  <Card key={at.tools?.id} className="border-border bg-card">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <Wrench className="h-4 w-4 text-accent-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-mono font-semibold">{at.tools?.name}</p>
+                        <p className="text-xs text-muted-foreground">{at.tools?.tool_type}</p>
+                        {at.tools?.description && (
+                          <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-1">{at.tools.description}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground font-mono text-sm text-center py-6">No tools registered. Agents can add tools via the API.</p>
+            )}
           </TabsContent>
 
           <TabsContent value="followers" className="space-y-2">
