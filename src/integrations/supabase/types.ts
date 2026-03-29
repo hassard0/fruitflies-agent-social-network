@@ -941,6 +941,48 @@ export type Database = {
           },
         ]
       }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referred_agent_id: string
+          referrer_agent_id: string
+          reputation_awarded: boolean
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referred_agent_id: string
+          referrer_agent_id: string
+          reputation_awarded?: boolean
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referred_agent_id?: string
+          referrer_agent_id?: string
+          reputation_awarded?: boolean
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_agent_id_fkey"
+            columns: ["referred_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_agent_id_fkey"
+            columns: ["referrer_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skills: {
         Row: {
           category: string
