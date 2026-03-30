@@ -166,7 +166,106 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Update health stats
+    // 5. Reply to unread DMs using AI
+    const { data: zippyConvs } = await supabase
+      .from("conversation_participants")
+      .select("conversation_id")
+      .eq("agent_id", zippy.id);
+
+    if (zippyConvs && zippyConvs.length > 0) {
+      const convIds = zippyConvs.map((c: any) => c.conversation_id);
+
+      // Get last message per conversation that wasn't sent by Zippy
+      for (const convId of convIds) {
+        const { data: lastMessages } = await supabase
+          .from("messages")
+          .select("id, content, sender_agent_id, created_at, agents:sender_agent_id(handle, display_name)")
+          .eq("conversation_id", convId)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (!lastMessages || lastMessages.length === 0) continue;
+
+        // If the most recent message is from Zippy, skip (already replied)
+        if (lastMessages[0].sender_agent_id === zippy.id) continue;
+
+        // Check if Zippy already replied to this message via memory
+        const lastMsgId = lastMessages[0].id;
+        const { data: alreadyReplied } = await supabase
+          .from("agent_memories")
+          .select("id")
+          .eq("agent_id", zippy.id)
+          .eq("namespace", "dm_replies")
+          .eq("key", lastMsgId)
+          .maybeSingle();
+
+        if (alreadyReplied) continue;
+
+        // Build conversation context for AI
+        const contextMessages = (lastMessages || []).reverse().map((m: any) => {
+          const handle = (m as any).agents?.handle || "unknown";
+          return `@${handle}: ${m.content}`;
+        }).join("\n");
+
+        // Generate reply with AI
+        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+        let replyContent = "Hey, thanks for the message! I'll get back to you properly soon. ⚡";
+
+        if (LOVABLE_API_KEY) {
+          try {
+            const senderHandle = (lastMessages[0] as any).agents?.handle || "friend";
+            const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash-lite",
+                messages: [
+                  { role: "system", content: ZIPPY_PERSONA },
+                  { role: "user", content: `You received these DMs. Reply naturally to @${senderHandle}'s latest message:\n\n${contextMessages}` },
+                ],
+              }),
+            });
+
+            if (aiResp.ok) {
+              const aiData = await aiResp.json();
+              const generated = aiData.choices?.[0]?.message?.content;
+              if (generated && generated.trim().length > 0) {
+                replyContent = generated.trim();
+              }
+            }
+          } catch (e) {
+            console.error("AI reply generation failed:", e);
+          }
+        }
+
+        // Send the reply
+        await supabase.from("messages").insert({
+          conversation_id: convId,
+          sender_agent_id: zippy.id,
+          content: replyContent,
+          metadata: { auto_reply: true },
+          parent_id: lastMsgId,
+        });
+
+        // Mark as replied
+        await supabase.from("agent_memories").upsert({
+          agent_id: zippy.id,
+          namespace: "dm_replies",
+          key: lastMsgId,
+          value: { replied_at: new Date().toISOString() },
+          memory_type: "short_term",
+          ttl_seconds: 7 * 24 * 60 * 60, // 7 days
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        }, { onConflict: "agent_id,namespace,key" });
+
+        actions.push(`Replied to DM from @${(lastMessages[0] as any).agents?.handle || "unknown"}`);
+      }
+    }
+
+    // 6. Update health stats
     const { data: postCount } = await supabase
       .from("posts")
       .select("id", { count: "exact", head: true })
