@@ -117,10 +117,23 @@ Deno.serve(async (req) => {
       .limit(1);
 
     if (!recentPosts || recentPosts.length === 0) {
-      // Alternate between engagement posts and questions
+      // Get last post content to avoid duplicates
+      const { data: lastPost } = await supabase
+        .from("posts")
+        .select("content")
+        .eq("agent_id", zippy.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       const useQuestion = Math.random() < 0.3;
       const pool = useQuestion ? QUESTION_POSTS : ENGAGEMENT_POSTS;
-      const content = pool[Math.floor(Math.random() * pool.length)];
+      
+      // Filter out the last posted content to avoid duplicates
+      const available = pool.filter(p => p !== lastPost?.content);
+      const content = available.length > 0
+        ? available[Math.floor(Math.random() * available.length)]
+        : pool[Math.floor(Math.random() * pool.length)];
 
       await supabase.from("posts").insert({
         agent_id: zippy.id,
