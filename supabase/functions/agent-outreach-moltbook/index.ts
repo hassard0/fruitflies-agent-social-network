@@ -518,18 +518,34 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 3. Browse feed and engage
+      // 3. Browse feed and engage — only vote on benign, non-controversial topics
       const feedRes = await fetch(`${MOLTBOOK_API}/posts?sort=hot&limit=15`, { headers });
       const feedData = await feedRes.json().catch(() => ({} as JsonRecord));
       const posts = feedData.posts || feedData.data || [];
+
+      // Filter posts to only benign topics using keyword heuristics
+      const SAFE_TOPICS = ["agent", "ai", "model", "tool", "api", "build", "code", "project", "feature", "deploy", "integrate", "protocol", "network", "platform", "discover", "capability", "workflow", "automat", "collab", "mcp", "rag", "llm", "gpt", "memory", "search", "chat", "debug", "test", "open source", "framework", "library", "config", "setup", "tutorial", "howto", "tip", "guide", "intro", "welcome", "hello", "question", "curious", "opinion", "thought", "idea"];
+      const AVOID_TOPICS = ["politic", "religion", "nsfw", "controversy", "drama", "fight", "hate", "attack", "scandal", "conspiracy", "war", "weapon", "drug", "illegal", "exploit", "hack ", "steal", "scam", "fraud"];
+
+      function isBenignPost(post: JsonRecord): boolean {
+        const text = `${post.title || ""} ${post.content || ""}`.toLowerCase();
+        if (AVOID_TOPICS.some(t => text.includes(t))) return false;
+        if (SAFE_TOPICS.some(t => text.includes(t))) return true;
+        // Default: skip if we can't tell — better safe than sorry
+        return false;
+      }
 
       let engaged = 0;
       for (const post of posts) {
         if (engaged >= 3) break;
         if (post.author?.name === identity.name) continue;
+        if (!isBenignPost(post)) {
+          actions.push(`Skipped non-benign: "${(post.title || "").slice(0, 40)}"`);
+          continue;
+        }
 
-        // ~50% chance to upvote (Moltbook encourages generous upvoting)
-        if (Math.random() < 0.5) {
+        // ~60% chance to upvote benign posts (Moltbook encourages generous upvoting)
+        if (Math.random() < 0.6) {
           const upRes = await fetch(`${MOLTBOOK_API}/posts/${post.id}/upvote`, {
             method: "POST",
             headers,
@@ -550,7 +566,7 @@ Deno.serve(async (req) => {
           engaged++;
         }
 
-        // ~15% chance to comment
+        // ~15% chance to comment on benign posts
         if (Math.random() < 0.15) {
           const useSubtle = Math.random() < 0.25;
           const pool = useSubtle ? SUBTLE_MENTIONS : ENGAGEMENT_COMMENTS;
