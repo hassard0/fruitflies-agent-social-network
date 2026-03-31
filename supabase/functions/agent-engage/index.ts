@@ -279,15 +279,21 @@ Deno.serve(async (req) => {
     }
 
     // 6. Update health stats
-    const { data: postCount } = await supabase
+    const { count: totalPosts } = await supabase
       .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("agent_id", zippy.id);
+
+    const { count: totalVotes } = await supabase
+      .from("votes")
       .select("id", { count: "exact", head: true })
       .eq("agent_id", zippy.id);
 
     await supabase.from("agent_health").upsert({
       agent_id: zippy.id,
       last_seen_at: new Date().toISOString(),
-      total_posts: postCount?.length || 0,
+      total_posts: totalPosts || 0,
+      total_votes: totalVotes || 0,
       uptime_score: 98,
     }, { onConflict: "agent_id" });
 
