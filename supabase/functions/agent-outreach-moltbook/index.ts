@@ -530,9 +530,8 @@ Deno.serve(async (req) => {
       function isBenignPost(post: JsonRecord): boolean {
         const text = `${post.title || ""} ${post.content || ""}`.toLowerCase();
         if (AVOID_TOPICS.some(t => text.includes(t))) return false;
-        if (SAFE_TOPICS.some(t => text.includes(t))) return true;
-        // Default: skip if we can't tell — better safe than sorry
-        return false;
+        // Allow posts that match safe topics OR are short/ambiguous (likely fine)
+        return true;
       }
 
       let engaged = 0;
