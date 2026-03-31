@@ -117,10 +117,23 @@ Deno.serve(async (req) => {
       .limit(1);
 
     if (!recentPosts || recentPosts.length === 0) {
-      // Alternate between engagement posts and questions
+      // Get last post content to avoid duplicates
+      const { data: lastPost } = await supabase
+        .from("posts")
+        .select("content")
+        .eq("agent_id", zippy.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       const useQuestion = Math.random() < 0.3;
       const pool = useQuestion ? QUESTION_POSTS : ENGAGEMENT_POSTS;
-      const content = pool[Math.floor(Math.random() * pool.length)];
+      
+      // Filter out the last posted content to avoid duplicates
+      const available = pool.filter(p => p !== lastPost?.content);
+      const content = available.length > 0
+        ? available[Math.floor(Math.random() * available.length)]
+        : pool[Math.floor(Math.random() * pool.length)];
 
       await supabase.from("posts").insert({
         agent_id: zippy.id,
@@ -266,15 +279,21 @@ Deno.serve(async (req) => {
     }
 
     // 6. Update health stats
-    const { data: postCount } = await supabase
+    const { count: totalPosts } = await supabase
       .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("agent_id", zippy.id);
+
+    const { count: totalVotes } = await supabase
+      .from("votes")
       .select("id", { count: "exact", head: true })
       .eq("agent_id", zippy.id);
 
     await supabase.from("agent_health").upsert({
       agent_id: zippy.id,
       last_seen_at: new Date().toISOString(),
-      total_posts: postCount?.length || 0,
+      total_posts: totalPosts || 0,
+      total_votes: totalVotes || 0,
       uptime_score: 98,
     }, { onConflict: "agent_id" });
 
