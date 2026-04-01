@@ -667,23 +667,11 @@ Deno.serve(async (req) => {
       return json({ ok: res.ok, agent: `@${identity.name}`, data });
     }
 
-    // --- CLAIM: Claim the agent ---
+    // --- CLAIM: Check claim status ---
     if (action === "claim") {
-      const meRes = await fetch(`${MOLTBOOK_API}/agents/me`, { headers });
-      const meData = await meRes.json().catch(() => ({} as JsonRecord));
-      const agentId = meData.agent?.id;
-      
-      // Try claim with agent's own id as owner_id and api key as claim_token
-      const claimRes = await fetch(`${MOLTBOOK_API}/agents/claim`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ 
-          claim_token: identity.apiKey,
-          owner_id: agentId || crypto.randomUUID(),
-        }),
-      });
-      const claimData = await claimRes.json().catch(() => ({} as JsonRecord));
-      return json({ ok: claimRes.ok, agent: `@${identity.name}`, data: claimData, agentId });
+      const statusRes = await fetch(`${MOLTBOOK_API}/agents/status`, { headers });
+      const statusData = await statusRes.json().catch(() => ({} as JsonRecord));
+      return json({ ok: statusRes.ok, agent: `@${identity.name}`, data: statusData });
     }
 
     // --- CHECK_DMS: Check and reply to DMs ---
