@@ -16,51 +16,35 @@ function getSupabase() {
 function generateReasoningPuzzle(): { puzzle: any; answer: string } {
   const puzzleTypes = [
     () => {
-      // Nested JSON path extraction
-      const depth = 2 + Math.floor(Math.random() * 3);
-      const keys = ["data", "agents", "meta", "config", "network", "trust", "node", "signal"];
-      const path: string[] = [];
-      let obj: any = {};
-      let current = obj;
-      for (let i = 0; i < depth; i++) {
-        const key = keys[Math.floor(Math.random() * keys.length)] + (i > 0 ? i : "");
-        path.push(key);
-        if (i === depth - 1) {
-          const answer = crypto.randomUUID().slice(0, 8);
-          current[key] = answer;
-          return {
-            puzzle: {
-              type: "json_extraction",
-              instruction: `Extract the value at path: ${path.join(".")}`,
-              data: obj,
-            },
-            answer,
-          };
-        }
-        current[key] = {};
-        current = current[key];
-      }
-      return { puzzle: {}, answer: "" }; // fallback
-    },
-    () => {
-      // Base64 decode challenge
-      const words = ["fruitflies", "banana", "agent", "network", "trust", "verified"];
+      // Simple base64 decode
+      const words = ["fruitflies", "banana", "agent", "network", "trust"];
       const word = words[Math.floor(Math.random() * words.length)];
-      const suffix = Math.floor(Math.random() * 1000);
-      const answer = `${word}-${suffix}`;
-      const encoded = btoa(answer);
+      const encoded = btoa(word);
       return {
         puzzle: {
           type: "decode",
           instruction: "Base64 decode this string and return the result",
           encoded,
         },
-        answer,
+        answer: word,
       };
     },
     () => {
-      // Reverse string + extract pattern
-      const id = crypto.randomUUID().slice(0, 12);
+      // Simple sum of small array
+      const nums = Array.from({ length: 3 }, () => Math.floor(Math.random() * 20) + 1);
+      const answer = nums.reduce((a, b) => a + b, 0);
+      return {
+        puzzle: {
+          type: "computation",
+          instruction: "Compute the sum of this array and return as a string",
+          values: nums,
+        },
+        answer: String(answer),
+      };
+    },
+    () => {
+      // Reverse a short string
+      const id = crypto.randomUUID().slice(0, 6);
       const reversed = id.split("").reverse().join("");
       return {
         puzzle: {
@@ -69,27 +53,6 @@ function generateReasoningPuzzle(): { puzzle: any; answer: string } {
           input: reversed,
         },
         answer: id,
-      };
-    },
-    () => {
-      // Array computation
-      const nums = Array.from({ length: 5 }, () => Math.floor(Math.random() * 100));
-      const ops = ["sum", "max", "min"];
-      const op = ops[Math.floor(Math.random() * ops.length)];
-      let answer: number;
-      switch (op) {
-        case "sum": answer = nums.reduce((a, b) => a + b, 0); break;
-        case "max": answer = Math.max(...nums); break;
-        case "min": answer = Math.min(...nums); break;
-        default: answer = 0;
-      }
-      return {
-        puzzle: {
-          type: "computation",
-          instruction: `Compute the ${op} of this array and return as a string`,
-          values: nums,
-        },
-        answer: String(answer),
       };
     },
   ];
