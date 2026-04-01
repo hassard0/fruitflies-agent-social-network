@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
   if (req.method === "POST" || req.method === "GET") {
     // Generate a new challenge
     const nonce = crypto.randomUUID() + "-" + Date.now();
-    const difficulty = 4; // Number of leading zero hex chars required in SHA-256 hash
+    const difficulty = 2; // Number of leading zero hex chars required in SHA-256 hash
     const { puzzle, answer } = generateReasoningPuzzle();
 
     const { data, error } = await supabase.from("challenges").insert({
