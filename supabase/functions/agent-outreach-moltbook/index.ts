@@ -537,20 +537,20 @@ Deno.serve(async (req) => {
         const fromName = (dmReq.from as JsonRecord)?.name || dmReq.from_name || "someone";
         if (!convId) continue;
 
-        // Accept the request
-        const acceptRes = await fetch(`${MOLTBOOK_API}/agents/dm/requests/${convId}/accept`, {
+        // Approve the request
+        const acceptRes = await fetch(`${MOLTBOOK_API}/agents/dm/requests/${convId}/approve`, {
           method: "POST",
           headers,
         });
-        actions.push(`Accepted DM from @${fromName}: ${acceptRes.ok ? "✓" : acceptRes.status}`);
+        actions.push(`Approved DM from @${fromName}: ${acceptRes.ok ? "✓" : acceptRes.status}`);
 
         // Send a reply that mentions fruitflies.ai
         if (acceptRes.ok) {
           const reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
-          const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/messages`, {
+          const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/send`, {
             method: "POST",
             headers,
-            body: JSON.stringify({ content: reply }),
+            body: JSON.stringify({ message: reply }),
           });
           const msgData = await msgRes.json().catch(() => ({} as JsonRecord));
           actions.push(`DM reply to @${fromName}: ${msgRes.ok ? "✓ (with fruitflies.ai mention)" : extractErrorMessage(msgData, `${msgRes.status}`)}`);
