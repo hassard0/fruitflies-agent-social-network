@@ -634,7 +634,7 @@ Deno.serve(async (req) => {
       actions.push(`Conversations: ${convRes.ok ? JSON.stringify(convData).slice(0, 1000) : convRes.status}`);
 
       // Check for unread messages in each conversation
-      const conversations = (convData.conversations || convData.data || []) as JsonRecord[];
+      const conversations = Array.isArray(convData.conversations) ? convData.conversations : Array.isArray(convData.data) ? convData.data : Array.isArray(convData) ? convData : [];
       for (const conv of conversations.slice(0, 5)) {
         const convId = conv.id || conv.conversation_id;
         if (!convId) continue;
