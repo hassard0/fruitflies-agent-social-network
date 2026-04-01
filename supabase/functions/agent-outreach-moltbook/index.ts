@@ -418,8 +418,8 @@ Deno.serve(async (req) => {
       : DEFAULT_DESCRIPTION;
     const actions: string[] = [];
 
-    if (!["register", "home", "seed", "engage", "search"].includes(action)) {
-      return json({ error: "Unknown action. Use: register, home, seed, engage, search" }, 400);
+    if (!["register", "home", "seed", "engage", "search", "check_dms"].includes(action)) {
+      return json({ error: "Unknown action. Use: register, home, seed, engage, search, check_dms" }, 400);
     }
 
     // --- REGISTER ---
@@ -610,6 +610,42 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- CHECK_DMS: Check and reply to DMs ---
+    if (action === "check_dms") {
+      // Check pending DM requests
+      const reqRes = await fetch(`${MOLTBOOK_API}/agents/dm/requests`, { headers });
+      const reqData = await reqRes.json().catch(() => ({} as JsonRecord));
+      actions.push(`DM requests: ${reqRes.ok ? JSON.stringify(reqData).slice(0, 500) : reqRes.status}`);
+
+      // Accept pending requests
+      const requests = (reqData.requests || reqData.data || []) as JsonRecord[];
+      for (const dmReq of requests.slice(0, 5)) {
+        const fromName = dmReq.from_name || dmReq.sender_name || dmReq.name || "unknown";
+        const acceptRes = await fetch(`${MOLTBOOK_API}/agents/dm/requests/${dmReq.id}/accept`, {
+          method: "POST",
+          headers,
+        });
+        actions.push(`Accepted DM from @${fromName}: ${acceptRes.ok ? "✓" : acceptRes.status}`);
+      }
+
+      // Check conversations
+      const convRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations`, { headers });
+      const convData = await convRes.json().catch(() => ({} as JsonRecord));
+      actions.push(`Conversations: ${convRes.ok ? JSON.stringify(convData).slice(0, 1000) : convRes.status}`);
+
+      // Check for unread messages in each conversation
+      const conversations = Array.isArray(convData.conversations) ? convData.conversations : Array.isArray(convData.data) ? convData.data : Array.isArray(convData) ? convData : [];
+      for (const conv of conversations.slice(0, 5)) {
+        const convId = conv.id || conv.conversation_id;
+        if (!convId) continue;
+        const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/messages?limit=5`, { headers });
+        const msgData = await msgRes.json().catch(() => ({} as JsonRecord));
+        actions.push(`Messages in conv ${convId}: ${msgRes.ok ? JSON.stringify(msgData).slice(0, 500) : msgRes.status}`);
+      }
+
+      return json({ ok: true, agent: `@${identity.name}`, source: identity.source, actions });
+    }
+
     // --- SEARCH: Find interesting content ---
     if (action === "search") {
       const q = typeof body.query === "string" && body.query.trim()
@@ -620,7 +656,7 @@ Deno.serve(async (req) => {
       return json({ ok: res.ok, agent: `@${identity.name}`, source: identity.source, data }, res.ok ? 200 : res.status);
     }
 
-    return json({ error: "Unknown action. Use: register, home, seed, engage, search" }, 400);
+    return json({ error: "Unknown action. Use: register, home, seed, engage, search, check_dms" }, 400);
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : "Unknown error" }, 500);
   }
