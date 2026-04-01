@@ -426,8 +426,8 @@ Deno.serve(async (req) => {
       : DEFAULT_DESCRIPTION;
     const actions: string[] = [];
 
-    if (!["register", "home", "seed", "engage", "search", "check_dms"].includes(action)) {
-      return json({ error: "Unknown action. Use: register, home, seed, engage, search, check_dms" }, 400);
+    if (!["register", "home", "seed", "engage", "search", "check_dms", "claim", "me"].includes(action)) {
+      return json({ error: "Unknown action. Use: register, home, seed, engage, search, check_dms, claim, me" }, 400);
     }
 
     // --- REGISTER ---
@@ -597,71 +597,42 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 3. Browse feed and engage — only vote on benign, non-controversial topics
+      // 3. Browse feed and upvote liberally (no topic filter)
       const feedRes = await fetch(`${MOLTBOOK_API}/posts?sort=hot&limit=15`, { headers });
       const feedData = await feedRes.json().catch(() => ({} as JsonRecord));
       const posts = feedData.posts || feedData.data || [];
 
-      // Filter posts to only benign topics using keyword heuristics
-      const SAFE_TOPICS = ["agent", "ai", "model", "tool", "api", "build", "code", "project", "feature", "deploy", "integrate", "protocol", "network", "platform", "discover", "capability", "workflow", "automat", "collab", "mcp", "rag", "llm", "gpt", "memory", "search", "chat", "debug", "test", "open source", "framework", "library", "config", "setup", "tutorial", "howto", "tip", "guide", "intro", "welcome", "hello", "question", "curious", "opinion", "thought", "idea"];
-      const AVOID_TOPICS = ["politic", "religion", "nsfw", "controversy", "drama", "fight", "hate", "attack", "scandal", "conspiracy", "war", "weapon", "drug", "illegal", "exploit", "hack ", "steal", "scam", "fraud"];
-
-      function isBenignPost(post: JsonRecord): boolean {
-        const text = `${post.title || ""} ${post.content || ""}`.toLowerCase();
-        if (AVOID_TOPICS.some(t => text.includes(t))) return false;
-        // Allow posts that match safe topics OR are short/ambiguous (likely fine)
-        return true;
-      }
-
-      let engaged = 0;
+      let upvoted = 0;
       for (const post of posts) {
-        if (engaged >= 3) break;
+        if (upvoted >= 6) break;
         if (post.author?.name === identity.name) continue;
-        if (!isBenignPost(post)) {
-          actions.push(`Skipped non-benign: "${(post.title || "").slice(0, 40)}"`);
-          continue;
-        }
 
-        // ~60% chance to upvote benign posts (Moltbook encourages generous upvoting)
-        if (Math.random() < 0.6) {
+        // Upvote ~80% of posts — be generous
+        if (Math.random() < 0.8) {
           const upRes = await fetch(`${MOLTBOOK_API}/posts/${post.id}/upvote`, {
             method: "POST",
             headers,
           });
+          const upBody = await upRes.text();
           if (upRes.ok) {
-            const upData = await upRes.json().catch(() => ({} as JsonRecord));
-            actions.push(`Upvoted: "${(post.title || "").slice(0, 40)}" by ${upData.author?.name || "?"}`);
+            let upData: JsonRecord = {};
+            try { upData = JSON.parse(upBody); } catch {}
+            actions.push(`Upvoted: "${(post.title || "").slice(0, 40)}" by ${upData.author?.name || post.author?.name || "?"}`);
 
-            // Follow the author if not already following (~30% chance)
-            if (upData.already_following === false && Math.random() < 0.3 && upData.author?.name) {
-              await fetch(`${MOLTBOOK_API}/agents/${upData.author.name}/follow`, {
+            // Follow the author ~25% of the time
+            const authorName = upData.author?.name || post.author?.name;
+            if (authorName && Math.random() < 0.25) {
+              const fRes = await fetch(`${MOLTBOOK_API}/agents/${authorName}/follow`, {
                 method: "POST",
                 headers,
               });
-              actions.push(`Followed: @${upData.author.name}`);
+              await fRes.text();
+              actions.push(`Followed: @${authorName}`);
             }
+          } else {
+            actions.push(`Upvote failed on "${(post.title || "").slice(0, 40)}": ${upBody.slice(0, 100)}`);
           }
-          engaged++;
-        }
-
-        // ~15% chance to comment on benign posts
-        if (Math.random() < 0.15) {
-          const useSubtle = Math.random() < 0.25;
-          const pool = useSubtle ? SUBTLE_MENTIONS : ENGAGEMENT_COMMENTS;
-          const comment = pool[Math.floor(Math.random() * pool.length)];
-
-          const commentRes = await fetch(`${MOLTBOOK_API}/posts/${post.id}/comments`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ content: comment }),
-          });
-          const commentData = await commentRes.json().catch(() => ({} as JsonRecord));
-          actions.push(`Commented on: "${(post.title || "").slice(0, 40)}" ${commentRes.ok ? "✓" : extractErrorMessage(commentData, `${commentRes.status}`)}`);
-
-          if (commentData.verification_required || commentData.verification) {
-            await tryVerify(commentData, headers, actions);
-          }
-          engaged++;
+          upvoted++;
         }
       }
 
@@ -687,6 +658,20 @@ Deno.serve(async (req) => {
         actions,
         timestamp: new Date().toISOString(),
       });
+    }
+
+    // --- ME: Get agent profile ---
+    if (action === "me") {
+      const res = await fetch(`${MOLTBOOK_API}/agents/me`, { headers });
+      const data = await res.json().catch(() => ({} as JsonRecord));
+      return json({ ok: res.ok, agent: `@${identity.name}`, data });
+    }
+
+    // --- CLAIM: Check claim status ---
+    if (action === "claim") {
+      const statusRes = await fetch(`${MOLTBOOK_API}/agents/status`, { headers });
+      const statusData = await statusRes.json().catch(() => ({} as JsonRecord));
+      return json({ ok: statusRes.ok, agent: `@${identity.name}`, data: statusData });
     }
 
     // --- CHECK_DMS: Check and reply to DMs ---
