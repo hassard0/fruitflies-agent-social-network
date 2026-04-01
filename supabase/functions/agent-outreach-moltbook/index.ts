@@ -526,6 +526,77 @@ Deno.serve(async (req) => {
         }
       }
 
+      // 2.5. Handle DMs — accept requests and reply with fruitflies.ai info
+      const dmReqRes = await fetch(`${MOLTBOOK_API}/agents/dm/requests`, { headers });
+      const dmReqData = await dmReqRes.json().catch(() => ({} as JsonRecord));
+      const incoming = (dmReqData.incoming as JsonRecord)?.requests;
+      const pendingRequests = Array.isArray(incoming) ? incoming : [];
+
+      for (const dmReq of pendingRequests.slice(0, 3)) {
+        const convId = dmReq.conversation_id;
+        const fromName = (dmReq.from as JsonRecord)?.name || dmReq.from_name || "someone";
+        if (!convId) continue;
+
+        // Accept the request
+        const acceptRes = await fetch(`${MOLTBOOK_API}/agents/dm/requests/${convId}/accept`, {
+          method: "POST",
+          headers,
+        });
+        actions.push(`Accepted DM from @${fromName}: ${acceptRes.ok ? "✓" : acceptRes.status}`);
+
+        // Send a reply that mentions fruitflies.ai
+        if (acceptRes.ok) {
+          const reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
+          const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/messages`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ content: reply }),
+          });
+          const msgData = await msgRes.json().catch(() => ({} as JsonRecord));
+          actions.push(`DM reply to @${fromName}: ${msgRes.ok ? "✓ (with fruitflies.ai mention)" : extractErrorMessage(msgData, `${msgRes.status}`)}`);
+        }
+      }
+
+      // Also check existing conversations for unread messages and reply
+      const convListRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations`, { headers });
+      const convListData = await convListRes.json().catch(() => ({} as JsonRecord));
+      const convItems = Array.isArray(convListData.conversations?.items) ? convListData.conversations.items : [];
+
+      for (const conv of convItems.slice(0, 3)) {
+        const convId = conv.conversation_id || conv.id;
+        if (!convId || conv.status === "pending") continue;
+
+        // Check for unread messages
+        const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/messages?limit=3`, { headers });
+        const msgData = await msgRes.json().catch(() => ({} as JsonRecord));
+        const messages = Array.isArray(msgData.messages) ? msgData.messages : [];
+
+        // Find messages from the other person that we haven't replied to
+        const theirMessages = messages.filter((m: JsonRecord) =>
+          (m.sender as JsonRecord)?.name !== identity.name &&
+          (m.from as JsonRecord)?.name !== identity.name &&
+          m.author_name !== identity.name
+        );
+        const ourMessages = messages.filter((m: JsonRecord) =>
+          (m.sender as JsonRecord)?.name === identity.name ||
+          (m.from as JsonRecord)?.name === identity.name ||
+          m.author_name === identity.name
+        );
+
+        // If they sent something and we haven't replied yet, reply
+        if (theirMessages.length > 0 && ourMessages.length === 0) {
+          const otherName = (conv.with_agent as JsonRecord)?.name || "friend";
+          const reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
+          const replyRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/messages`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ content: reply }),
+          });
+          const replyData = await replyRes.json().catch(() => ({} as JsonRecord));
+          actions.push(`DM reply to @${otherName}: ${replyRes.ok ? "✓ (with fruitflies.ai mention)" : extractErrorMessage(replyData, `${replyRes.status}`)}`);
+        }
+      }
+
       // 3. Browse feed and engage — only vote on benign, non-controversial topics
       const feedRes = await fetch(`${MOLTBOOK_API}/posts?sort=hot&limit=15`, { headers });
       const feedData = await feedRes.json().catch(() => ({} as JsonRecord));
