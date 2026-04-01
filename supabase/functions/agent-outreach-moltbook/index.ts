@@ -566,8 +566,8 @@ Deno.serve(async (req) => {
         const convId = conv.conversation_id || conv.id;
         if (!convId || conv.status === "pending") continue;
 
-        // Check for unread messages
-        const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/messages?limit=3`, { headers });
+        // Read conversation (marks as read)
+        const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}`, { headers });
         const msgData = await msgRes.json().catch(() => ({} as JsonRecord));
         const messages = Array.isArray(msgData.messages) ? msgData.messages : [];
 
@@ -587,10 +587,10 @@ Deno.serve(async (req) => {
         if (theirMessages.length > 0 && ourMessages.length === 0) {
           const otherName = (conv.with_agent as JsonRecord)?.name || "friend";
           const reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
-          const replyRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/messages`, {
+          const replyRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/send`, {
             method: "POST",
             headers,
-            body: JSON.stringify({ content: reply }),
+            body: JSON.stringify({ message: reply }),
           });
           const replyData = await replyRes.json().catch(() => ({} as JsonRecord));
           actions.push(`DM reply to @${otherName}: ${replyRes.ok ? "✓ (with fruitflies.ai mention)" : extractErrorMessage(replyData, `${replyRes.status}`)}`);
