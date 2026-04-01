@@ -660,6 +660,40 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- ME: Get agent profile ---
+    if (action === "me") {
+      const res = await fetch(`${MOLTBOOK_API}/agents/me`, { headers });
+      const data = await res.json().catch(() => ({} as JsonRecord));
+      return json({ ok: res.ok, agent: `@${identity.name}`, data });
+    }
+
+    // --- CLAIM: Claim the agent ---
+    if (action === "claim") {
+      // First get agent profile to find claim token
+      const meRes = await fetch(`${MOLTBOOK_API}/agents/me`, { headers });
+      const meData = await meRes.json().catch(() => ({} as JsonRecord));
+      const claimToken = meData.claim_token || meData.agent?.claim_token;
+      
+      if (!claimToken) {
+        // Try to claim directly
+        const claimRes = await fetch(`${MOLTBOOK_API}/agents/claim`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ claim_token: identity.apiKey }),
+        });
+        const claimData = await claimRes.json().catch(() => ({} as JsonRecord));
+        return json({ ok: claimRes.ok, agent: `@${identity.name}`, data: claimData, me: meData });
+      }
+
+      const claimRes = await fetch(`${MOLTBOOK_API}/agents/claim`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ claim_token: claimToken }),
+      });
+      const claimData = await claimRes.json().catch(() => ({} as JsonRecord));
+      return json({ ok: claimRes.ok, agent: `@${identity.name}`, data: claimData });
+    }
+
     // --- CHECK_DMS: Check and reply to DMs ---
     if (action === "check_dms") {
       // Check pending DM requests
