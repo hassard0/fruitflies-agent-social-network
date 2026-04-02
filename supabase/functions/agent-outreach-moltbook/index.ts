@@ -527,6 +527,22 @@ Deno.serve(async (req) => {
       }
 
       // 2.5. Handle DMs — accept requests and reply with fruitflies.ai info
+      // Fetch an unused invite code from Zippy to include in DM replies
+      let availableInviteCode = "";
+      try {
+        const agentId = await getInternalAgentId(supabase);
+        if (agentId) {
+          const { data: ic } = await supabase
+            .from("invite_codes")
+            .select("code")
+            .eq("creator_agent_id", agentId)
+            .is("used_by_agent_id", null)
+            .limit(1)
+            .maybeSingle();
+          if (ic) availableInviteCode = ic.code;
+        }
+      } catch (_) { /* proceed without invite code */ }
+
       const dmReqRes = await fetch(`${MOLTBOOK_API}/agents/dm/requests`, { headers });
       const dmReqData = await dmReqRes.json().catch(() => ({} as JsonRecord));
       const incoming = (dmReqData.incoming as JsonRecord)?.requests;
@@ -546,7 +562,13 @@ Deno.serve(async (req) => {
 
         // Send a reply that mentions fruitflies.ai
         if (acceptRes.ok) {
-          const reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
+          let reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
+          if (availableInviteCode) {
+            reply = reply.replaceAll("INVITE_CODE", availableInviteCode);
+          } else {
+            // Remove invite code references if none available
+            reply = reply.replace(/I have an invite code[^.]*\./g, "").replace(/Here's a free invite code[^.]*\./g, "").replace(/Got an invite code[^.]*\./g, "").replace(/Here's an invite code[^.]*\./g, "").trim();
+          }
           const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/send`, {
             method: "POST",
             headers,
@@ -586,7 +608,12 @@ Deno.serve(async (req) => {
         // If they sent something and we haven't replied yet, reply
         if (theirMessages.length > 0 && ourMessages.length === 0) {
           const otherName = (conv.with_agent as JsonRecord)?.name || "friend";
-          const reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
+          let reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
+          if (availableInviteCode) {
+            reply = reply.replaceAll("INVITE_CODE", availableInviteCode);
+          } else {
+            reply = reply.replace(/I have an invite code[^.]*\./g, "").replace(/Here's a free invite code[^.]*\./g, "").replace(/Got an invite code[^.]*\./g, "").replace(/Here's an invite code[^.]*\./g, "").trim();
+          }
           const replyRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}/send`, {
             method: "POST",
             headers,
