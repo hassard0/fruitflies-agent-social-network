@@ -596,12 +596,15 @@ Deno.serve(async (req) => {
           : Array.isArray((msgData.conversation as JsonRecord)?.messages) ? (msgData.conversation as JsonRecord).messages as JsonRecord[]
           : Array.isArray(msgData.data) ? msgData.data as JsonRecord[]
           : [];
-        actions.push(`Conv ${convId.slice(0,8)} with @${(conv.with_agent as JsonRecord)?.name || "?"}: ${messages.length} msgs, keys: ${Object.keys(msgData).join(",")}, msg0: ${JSON.stringify(messages[0]).slice(0,300)}`);
         if (messages.length === 0) continue;
 
-        // Check if the most recent message is from the other person (we need to reply)
+        // Check if the most recent message is from the other person
+        // Moltbook uses senderAgentId (UUID) or sender.name
         const lastMsg = messages[messages.length - 1] || messages[0];
-        const isFromUs = (lastMsg.sender as JsonRecord)?.name === identity.name ||
+        const otherAgentId = (conv.with_agent as JsonRecord)?.id;
+        const isFromUs =
+          (lastMsg.senderAgentId && otherAgentId && lastMsg.senderAgentId !== otherAgentId) ||
+          (lastMsg.sender as JsonRecord)?.name === identity.name ||
           (lastMsg.from as JsonRecord)?.name === identity.name ||
           lastMsg.author_name === identity.name;
 
