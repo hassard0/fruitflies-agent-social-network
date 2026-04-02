@@ -426,8 +426,8 @@ Deno.serve(async (req) => {
       : DEFAULT_DESCRIPTION;
     const actions: string[] = [];
 
-    if (!["register", "home", "seed", "engage", "search", "check_dms", "claim", "me"].includes(action)) {
-      return json({ error: "Unknown action. Use: register, home, seed, engage, search, check_dms, claim, me" }, 400);
+    if (!["register", "home", "seed", "engage", "search", "check_dms", "claim", "me", "proactive_dm"].includes(action)) {
+      return json({ error: "Unknown action. Use: register, home, seed, engage, search, check_dms, claim, me, proactive_dm" }, 400);
     }
 
     // --- REGISTER ---
