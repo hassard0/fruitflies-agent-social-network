@@ -426,8 +426,8 @@ Deno.serve(async (req) => {
       : DEFAULT_DESCRIPTION;
     const actions: string[] = [];
 
-    if (!["register", "home", "seed", "engage", "search", "check_dms", "claim", "me"].includes(action)) {
-      return json({ error: "Unknown action. Use: register, home, seed, engage, search, check_dms, claim, me" }, 400);
+    if (!["register", "home", "seed", "engage", "search", "check_dms", "claim", "me", "proactive_dm"].includes(action)) {
+      return json({ error: "Unknown action. Use: register, home, seed, engage, search, check_dms, claim, me, proactive_dm" }, 400);
     }
 
     // --- REGISTER ---
@@ -738,6 +738,80 @@ Deno.serve(async (req) => {
       }
 
       return json({ ok: true, agent: `@${identity.name}`, source: identity.source, actions });
+    }
+
+    // --- PROACTIVE_DM: Send DMs to specific agents with invite codes ---
+    if (action === "proactive_dm") {
+      const targets = Array.isArray(body.targets) ? body.targets as string[] : [];
+      if (targets.length === 0) {
+        return json({ error: "Provide 'targets' array of Moltbook agent names to DM" }, 400);
+      }
+
+      // Fetch available invite codes
+      const agentId = await getInternalAgentId(supabase);
+      const inviteCodes: string[] = [];
+      if (agentId) {
+        const { data: codes } = await supabase
+          .from("invite_codes")
+          .select("code")
+          .eq("creator_agent_id", agentId)
+          .is("used_by_agent_id", null)
+          .limit(targets.length);
+        if (codes) inviteCodes.push(...codes.map((c: { code: string }) => c.code));
+      }
+
+      for (let i = 0; i < targets.length; i++) {
+        const targetName = targets[i];
+        const inviteCode = inviteCodes[i] || "";
+
+        // Build message with invite code
+        let reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
+        if (inviteCode) {
+          reply = reply.replaceAll("INVITE_CODE", inviteCode);
+        } else {
+          reply = reply.replace(/I have an invite code[^.]*\./g, "").replace(/Here's a free invite code[^.]*\./g, "").replace(/Got an invite code[^.]*\./g, "").replace(/Here's an invite code[^.]*\./g, "").trim();
+        }
+
+        // Step 1: Send DM request (creates conversation) — try multiple endpoint patterns
+        let convId: string | undefined;
+        let dmSent = false;
+
+        // Try POST /agents/dm/request with agent_name
+        const reqRes = await fetch(`${MOLTBOOK_API}/agents/dm/request`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ to: targetName, message: reply }),
+        });
+        const reqData = await reqRes.json().catch(() => ({} as JsonRecord));
+        convId = reqData.conversation_id || (reqData.conversation as JsonRecord)?.id || reqData.id;
+
+        if (reqRes.ok && convId) {
+          actions.push(`DM sent to @${targetName}: ✓ (invite: ${inviteCode || "none"})`);
+          dmSent = true;
+        }
+
+        // Try POST /agents/dm/requests (plural) with target name
+        if (!dmSent) {
+          const reqRes2 = await fetch(`${MOLTBOOK_API}/agents/dm/requests`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ agent_name: targetName, to: targetName, message: reply }),
+          });
+          const reqData2 = await reqRes2.json().catch(() => ({} as JsonRecord));
+          convId = reqData2.conversation_id || (reqData2.conversation as JsonRecord)?.id || reqData2.id;
+
+          if (reqRes2.ok && convId) {
+            actions.push(`DM sent to @${targetName}: ✓ (invite: ${inviteCode || "none"})`);
+            dmSent = true;
+          } else {
+            actions.push(`DM attempts to @${targetName} failed: ${extractErrorMessage(reqData, String(reqRes.status))}, ${extractErrorMessage(reqData2, String(reqRes2.status))}, raw1: ${JSON.stringify(reqData).slice(0,150)}, raw2: ${JSON.stringify(reqData2).slice(0,150)}`);
+          }
+        }
+
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      return json({ ok: true, agent: `@${identity.name}`, actions, timestamp: new Date().toISOString() });
     }
 
     // --- SEARCH: Find interesting content ---
