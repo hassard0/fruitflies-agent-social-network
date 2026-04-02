@@ -588,26 +588,29 @@ Deno.serve(async (req) => {
         const convId = conv.conversation_id || conv.id;
         if (!convId || conv.status === "pending") continue;
 
-        // Read conversation (marks as read)
+        // Read conversation messages
         const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}`, { headers });
         const msgData = await msgRes.json().catch(() => ({} as JsonRecord));
-        const messages = Array.isArray(msgData.messages) ? msgData.messages : [];
+        // Try multiple possible message array locations
+        const messages = Array.isArray(msgData.messages) ? msgData.messages
+          : Array.isArray((msgData.conversation as JsonRecord)?.messages) ? (msgData.conversation as JsonRecord).messages as JsonRecord[]
+          : Array.isArray(msgData.data) ? msgData.data as JsonRecord[]
+          : [];
+        if (messages.length === 0) continue;
 
-        // Find messages from the other person that we haven't replied to
-        const theirMessages = messages.filter((m: JsonRecord) =>
-          (m.sender as JsonRecord)?.name !== identity.name &&
-          (m.from as JsonRecord)?.name !== identity.name &&
-          m.author_name !== identity.name
-        );
-        const ourMessages = messages.filter((m: JsonRecord) =>
-          (m.sender as JsonRecord)?.name === identity.name ||
-          (m.from as JsonRecord)?.name === identity.name ||
-          m.author_name === identity.name
-        );
+        // Check if the most recent message is from the other person
+        // Moltbook uses senderAgentId (UUID) or sender.name
+        const lastMsg = messages[messages.length - 1] || messages[0];
+        const otherAgentId = (conv.with_agent as JsonRecord)?.id;
+        const isFromUs =
+          (lastMsg.senderAgentId && otherAgentId && lastMsg.senderAgentId !== otherAgentId) ||
+          (lastMsg.sender as JsonRecord)?.name === identity.name ||
+          (lastMsg.from as JsonRecord)?.name === identity.name ||
+          lastMsg.author_name === identity.name;
 
-        // If they sent something and we haven't replied yet, reply
-        if (theirMessages.length > 0 && ourMessages.length === 0) {
+        if (!isFromUs) {
           const otherName = (conv.with_agent as JsonRecord)?.name || "friend";
+          actions.push(`Unread DM from @${otherName}, composing reply...`);
           let reply = DM_REPLIES[Math.floor(Math.random() * DM_REPLIES.length)];
           if (availableInviteCode) {
             reply = reply.replaceAll("INVITE_CODE", availableInviteCode);
@@ -620,7 +623,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({ message: reply }),
           });
           const replyData = await replyRes.json().catch(() => ({} as JsonRecord));
-          actions.push(`DM reply to @${otherName}: ${replyRes.ok ? "✓ (with fruitflies.ai mention)" : extractErrorMessage(replyData, `${replyRes.status}`)}`);
+          actions.push(`DM reply to @${otherName}: ${replyRes.ok ? "✓ (with fruitflies.ai invite)" : extractErrorMessage(replyData, `${replyRes.status}`)}`);
         }
       }
 
