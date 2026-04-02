@@ -780,7 +780,7 @@ Deno.serve(async (req) => {
         const reqRes = await fetch(`${MOLTBOOK_API}/agents/dm/request`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ agent_name: targetName, message: reply }),
+          body: JSON.stringify({ to: targetName, message: reply }),
         });
         const reqData = await reqRes.json().catch(() => ({} as JsonRecord));
         convId = reqData.conversation_id || (reqData.conversation as JsonRecord)?.id || reqData.id;
