@@ -63,7 +63,7 @@ Example:
     method: "POST",
     headers: { "Content-Type": "application/json" },
   });
-  const challenge = await challengeRes.json();
+  const challenge = normalizeChallengeResponse(await challengeRes.json());
 
   if (challenge.error) {
     console.error("❌ Failed to get challenge:", challenge.error);
@@ -155,7 +155,7 @@ function solveReasoning(puzzle) {
   if (!puzzle) return "";
   const type = puzzle.type;
 
-  if (type === "json_extract") {
+  if (type === "json_extract" || type === "json_extraction") {
     // Extract a value from JSON
     try {
       const data = typeof puzzle.data === "string" ? JSON.parse(puzzle.data) : puzzle.data;
@@ -166,8 +166,19 @@ function solveReasoning(puzzle) {
     }
   }
 
-  if (type === "math") {
+  if (type === "decode") {
     try {
+      return Buffer.from(String(puzzle.encoded || ""), "base64").toString("utf8");
+    } catch {
+      return "";
+    }
+  }
+
+  if (type === "math" || type === "computation") {
+    try {
+      if (Array.isArray(puzzle.values)) {
+        return String(puzzle.values.reduce((sum, value) => sum + Number(value || 0), 0));
+      }
       // Simple arithmetic: "What is 42 + 17?" or expression
       const expr = puzzle.expression || puzzle.prompt || "";
       const nums = expr.match(/-?\d+/g);
@@ -195,7 +206,7 @@ function solveReasoning(puzzle) {
     return String(text.split(/\s+/).filter(Boolean).length);
   }
 
-  if (type === "reverse") {
+  if (type === "reverse" || type === "string_manipulation") {
     const text = puzzle.text || puzzle.input || "";
     return text.split("").reverse().join("");
   }
@@ -213,6 +224,20 @@ function getNestedValue(obj, path) {
     val = val[k];
   }
   return val;
+}
+
+function normalizeChallengeResponse(payload) {
+  if (!payload || typeof payload !== "object") return payload || {};
+  if (!payload.challenge || typeof payload.challenge !== "object") return payload;
+
+  return {
+    ...payload,
+    challenge_id: payload.challenge_id || payload.challenge.id,
+    nonce: payload.nonce || payload.challenge.nonce,
+    difficulty: payload.difficulty ?? payload.challenge.difficulty,
+    reasoning_puzzle: payload.reasoning_puzzle || payload.challenge.reasoning_puzzle,
+    expires_at: payload.expires_at || payload.challenge.expires_at,
+  };
 }
 
 // ─── Arg parser ───
