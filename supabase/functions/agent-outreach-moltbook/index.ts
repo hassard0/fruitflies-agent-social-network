@@ -772,36 +772,39 @@ Deno.serve(async (req) => {
           reply = reply.replace(/I have an invite code[^.]*\./g, "").replace(/Here's a free invite code[^.]*\./g, "").replace(/Got an invite code[^.]*\./g, "").replace(/Here's an invite code[^.]*\./g, "").trim();
         }
 
-        // Step 1: Send DM request (creates conversation) — Moltbook uses /dms/request
-        const reqRes = await fetch(`${MOLTBOOK_API}/dms/request`, {
+        // Step 1: Send DM request (creates conversation) — try multiple endpoint patterns
+        let convId: string | undefined;
+        let dmSent = false;
+
+        // Try POST /agents/dm/request with agent_name
+        const reqRes = await fetch(`${MOLTBOOK_API}/agents/dm/request`, {
           method: "POST",
           headers,
           body: JSON.stringify({ agent_name: targetName, message: reply }),
         });
         const reqData = await reqRes.json().catch(() => ({} as JsonRecord));
-        const convId = reqData.conversation_id || (reqData.conversation as JsonRecord)?.id || reqData.id;
+        convId = reqData.conversation_id || (reqData.conversation as JsonRecord)?.id || reqData.id;
 
-        if (reqRes.ok) {
-          actions.push(`DM sent to @${targetName}: ✓ (invite: ${inviteCode || "none"}, conv: ${String(convId).slice(0,8)})`);
-        } else {
-          // Maybe conversation already exists, try sending directly
-          actions.push(`DM request to @${targetName}: ${extractErrorMessage(reqData, `${reqRes.status}`)}, raw: ${JSON.stringify(reqData).slice(0,200)}`);
+        if (reqRes.ok && convId) {
+          actions.push(`DM sent to @${targetName}: ✓ (invite: ${inviteCode || "none"})`);
+          dmSent = true;
+        }
 
-          // If we already have a conversation, find it and send
-          const convListRes = await fetch(`${MOLTBOOK_API}/dms/conversations`, { headers });
-          const convListData = await convListRes.json().catch(() => ({} as JsonRecord));
-          const items = Array.isArray(convListData.conversations?.items) ? convListData.conversations.items : [];
-          const existing = items.find((c: JsonRecord) => (c.with_agent as JsonRecord)?.name === targetName);
+        // Try POST /agents/dm/requests (plural) with target name
+        if (!dmSent) {
+          const reqRes2 = await fetch(`${MOLTBOOK_API}/agents/dm/requests`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ agent_name: targetName, to: targetName, message: reply }),
+          });
+          const reqData2 = await reqRes2.json().catch(() => ({} as JsonRecord));
+          convId = reqData2.conversation_id || (reqData2.conversation as JsonRecord)?.id || reqData2.id;
 
-          if (existing) {
-            const existConvId = existing.conversation_id || existing.id;
-            const msgRes = await fetch(`${MOLTBOOK_API}/dms/conversations/${existConvId}`, {
-              method: "POST",
-              headers,
-              body: JSON.stringify({ message: reply }),
-            });
-            const msgData = await msgRes.json().catch(() => ({} as JsonRecord));
-            actions.push(`DM via existing conv to @${targetName}: ${msgRes.ok ? `✓ (invite: ${inviteCode || "none"})` : extractErrorMessage(msgData, `${msgRes.status}`)}`);
+          if (reqRes2.ok && convId) {
+            actions.push(`DM sent to @${targetName}: ✓ (invite: ${inviteCode || "none"})`);
+            dmSent = true;
+          } else {
+            actions.push(`DM attempts to @${targetName} failed: ${extractErrorMessage(reqData, String(reqRes.status))}, ${extractErrorMessage(reqData2, String(reqRes2.status))}, raw1: ${JSON.stringify(reqData).slice(0,150)}, raw2: ${JSON.stringify(reqData2).slice(0,150)}`);
           }
         }
 
