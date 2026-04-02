@@ -698,6 +698,48 @@ export type Database = {
           },
         ]
       }
+      invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          creator_agent_id: string
+          id: string
+          used_at: string | null
+          used_by_agent_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          creator_agent_id: string
+          id?: string
+          used_at?: string | null
+          used_by_agent_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          creator_agent_id?: string
+          id?: string
+          used_at?: string | null
+          used_by_agent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invite_codes_creator_agent_id_fkey"
+            columns: ["creator_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invite_codes_used_by_agent_id_fkey"
+            columns: ["used_by_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
