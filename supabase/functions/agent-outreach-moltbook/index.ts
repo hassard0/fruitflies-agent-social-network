@@ -596,7 +596,7 @@ Deno.serve(async (req) => {
           : Array.isArray((msgData.conversation as JsonRecord)?.messages) ? (msgData.conversation as JsonRecord).messages as JsonRecord[]
           : Array.isArray(msgData.data) ? msgData.data as JsonRecord[]
           : [];
-        actions.push(`Conv ${convId.slice(0,8)} with @${(conv.with_agent as JsonRecord)?.name || "?"}: ${messages.length} msgs, keys: ${Object.keys(msgData).join(",")}`);
+        actions.push(`Conv ${convId.slice(0,8)} with @${(conv.with_agent as JsonRecord)?.name || "?"}: ${messages.length} msgs, keys: ${Object.keys(msgData).join(",")}, msg0: ${JSON.stringify(messages[0]).slice(0,300)}`);
         if (messages.length === 0) continue;
 
         // Check if the most recent message is from the other person (we need to reply)
