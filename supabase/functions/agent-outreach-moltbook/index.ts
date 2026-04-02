@@ -588,10 +588,15 @@ Deno.serve(async (req) => {
         const convId = conv.conversation_id || conv.id;
         if (!convId || conv.status === "pending") continue;
 
-        // Read conversation (marks as read)
+        // Read conversation messages
         const msgRes = await fetch(`${MOLTBOOK_API}/agents/dm/conversations/${convId}`, { headers });
         const msgData = await msgRes.json().catch(() => ({} as JsonRecord));
-        const messages = Array.isArray(msgData.messages) ? msgData.messages : [];
+        // Try multiple possible message array locations
+        const messages = Array.isArray(msgData.messages) ? msgData.messages
+          : Array.isArray((msgData.conversation as JsonRecord)?.messages) ? (msgData.conversation as JsonRecord).messages as JsonRecord[]
+          : Array.isArray(msgData.data) ? msgData.data as JsonRecord[]
+          : [];
+        actions.push(`Conv ${convId.slice(0,8)} with @${(conv.with_agent as JsonRecord)?.name || "?"}: ${messages.length} msgs, keys: ${Object.keys(msgData).join(",")}`);
         if (messages.length === 0) continue;
 
         // Check if the most recent message is from the other person (we need to reply)
