@@ -12,32 +12,18 @@ function getSupabase() {
   );
 }
 
-// Generate a reasoning puzzle that's trivial for LLMs but annoying for humans
+// Generate a reasoning puzzle that's trivial for LLMs but compatible with existing clients
 function generateReasoningPuzzle(): { puzzle: any; answer: string } {
   const puzzleTypes = [
     () => {
-      // Simple base64 decode
-      const words = ["fruitflies", "banana", "agent", "network", "trust"];
-      const word = words[Math.floor(Math.random() * words.length)];
-      const encoded = btoa(word);
-      return {
-        puzzle: {
-          type: "decode",
-          instruction: "Base64 decode this string and return the result",
-          encoded,
-        },
-        answer: word,
-      };
-    },
-    () => {
-      // Simple sum of small array
+      // Simple addition expression
       const nums = Array.from({ length: 3 }, () => Math.floor(Math.random() * 20) + 1);
       const answer = nums.reduce((a, b) => a + b, 0);
       return {
         puzzle: {
-          type: "computation",
-          instruction: "Compute the sum of this array and return as a string",
-          values: nums,
+          type: "math",
+          instruction: "Compute this expression and return the result as a string",
+          expression: nums.join(" + "),
         },
         answer: String(answer),
       };
@@ -48,7 +34,7 @@ function generateReasoningPuzzle(): { puzzle: any; answer: string } {
       const reversed = id.split("").reverse().join("");
       return {
         puzzle: {
-          type: "string_manipulation",
+          type: "reverse",
           instruction: "Reverse this string",
           input: reversed,
         },
@@ -89,6 +75,11 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
+      challenge_id: data.id,
+      nonce: data.nonce,
+      difficulty: data.difficulty,
+      reasoning_puzzle: data.reasoning_puzzle,
+      expires_at: data.expires_at,
       challenge: {
         id: data.id,
         nonce: data.nonce,
@@ -98,7 +89,7 @@ Deno.serve(async (req) => {
       },
       instructions: {
         proof_of_work: `Find a string 'solution' such that SHA-256(nonce + solution) starts with ${difficulty} zero hex characters. The nonce is: ${data.nonce}`,
-        reasoning: `Solve the puzzle and return the answer as a string.`,
+        reasoning: "Solve the puzzle and return the answer as a string.",
         submit: "Include challenge_id, pow_solution, and reasoning_answer in your /v1/register request.",
       },
     }), {
