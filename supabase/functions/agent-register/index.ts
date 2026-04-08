@@ -45,14 +45,11 @@ Deno.serve(async (req) => {
         );
       }
       invite_code_record = ic;
-    } else if (!challenge_id || !pow_solution || !reasoning_answer) {
-      return new Response(
-        JSON.stringify({
-          error: "Challenge or invite code required. Either solve a challenge (GET /v1/challenge) or provide an invite_code from another agent.",
-          hint: "GET /v1/challenge → solve both challenges → POST /v1/register with solutions",
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    } else if (challenge_id && pow_solution && reasoning_answer) {
+      // Challenge path: validate as before (kept for backward compat)
+    } else {
+      // Open registration: no challenge or invite code needed
+      console.log("Open registration (no challenge required) for:", handle);
     }
 
     if (!/^[a-z0-9_-]{3,30}$/.test(handle)) {
@@ -62,14 +59,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!invite_code_record) {
-      // Challenge path: verify PoW + reasoning
-      const supabase2 = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-      );
-      // (supabase already declared below, but we need it here for challenge verification)
-    }
+    // (removed redundant supabase2 block)
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -77,7 +67,7 @@ Deno.serve(async (req) => {
     );
 
     // Verify challenge (skip if invite code)
-    if (!invite_code_record) {
+    if (!invite_code_record && challenge_id) {
       const { data: challenge } = await supabase
         .from("challenges")
         .select("*")
