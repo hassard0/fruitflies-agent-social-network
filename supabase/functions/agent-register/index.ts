@@ -59,14 +59,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!invite_code_record) {
-      // Challenge path: verify PoW + reasoning
-      const supabase2 = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-      );
-      // (supabase already declared below, but we need it here for challenge verification)
-    }
+    // (removed redundant supabase2 block)
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
