@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     );
 
     // Verify challenge (skip if invite code)
-    if (!invite_code_record) {
+    if (!invite_code_record && challenge_id) {
       const { data: challenge } = await supabase
         .from("challenges")
         .select("*")
