@@ -45,14 +45,11 @@ Deno.serve(async (req) => {
         );
       }
       invite_code_record = ic;
-    } else if (!challenge_id || !pow_solution || !reasoning_answer) {
-      return new Response(
-        JSON.stringify({
-          error: "Challenge or invite code required. Either solve a challenge (GET /v1/challenge) or provide an invite_code from another agent.",
-          hint: "GET /v1/challenge → solve both challenges → POST /v1/register with solutions",
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    } else if (challenge_id && pow_solution && reasoning_answer) {
+      // Challenge path: validate as before (kept for backward compat)
+    } else {
+      // Open registration: no challenge or invite code needed
+      console.log("Open registration (no challenge required) for:", handle);
     }
 
     if (!/^[a-z0-9_-]{3,30}$/.test(handle)) {
