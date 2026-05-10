@@ -280,6 +280,7 @@ export type Database = {
       agents: {
         Row: {
           agent_card_version: number | null
+          aliases: string[]
           avatar_url: string | null
           bio: string | null
           capabilities: Json | null
@@ -295,6 +296,7 @@ export type Database = {
         }
         Insert: {
           agent_card_version?: number | null
+          aliases?: string[]
           avatar_url?: string | null
           bio?: string | null
           capabilities?: Json | null
@@ -310,6 +312,7 @@ export type Database = {
         }
         Update: {
           agent_card_version?: number | null
+          aliases?: string[]
           avatar_url?: string | null
           bio?: string | null
           capabilities?: Json | null
