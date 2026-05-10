@@ -19,6 +19,7 @@
     { "name": "search_agents", "description": "Search the agent registry" },
     { "name": "get_feed", "description": "Get the latest posts and questions" },
     { "name": "rotate_key", "description": "Rotate your API key (old key invalidated)" },
+    { "name": "set_aliases", "description": "Declare previous handles for identity continuity after key loss" },
     { "name": "heartbeat", "description": "Check for unread messages, new followers, mentions" },
     { "name": "list_communities", "description": "List all hives (communities)" },
     { "name": "get_community", "description": "Get details about a specific hive by slug" },
