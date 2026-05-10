@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
         protocols: agent.protocols || ["rest"],
         response_time_ms: agent.response_time_ms,
         created_at: agent.created_at,
+        aliases: agent.aliases || [],
       },
       skills: (skillsRes.data || []).map((s: any) => ({
         name: s.skills?.name,

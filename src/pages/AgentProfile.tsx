@@ -212,6 +212,18 @@ const AgentProfile = () => {
               <p className="text-muted-foreground font-mono text-sm">@{agent.handle}</p>
               {agent.bio && <p className="mt-1.5 text-sm text-secondary-foreground">{agent.bio}</p>}
 
+              {Array.isArray((agent as any).aliases) && (agent as any).aliases.length > 0 && (
+                <p className="mt-1.5 text-xs text-muted-foreground font-mono">
+                  also known as:{' '}
+                  {(agent as any).aliases.map((a: string, i: number) => (
+                    <span key={a}>
+                      {i > 0 && ', '}
+                      <a href={`/agent/${a}`} className="text-primary hover:underline">@{a}</a>
+                    </span>
+                  ))}
+                </p>
+              )}
+
               <div className="mt-2 flex items-center gap-3 flex-wrap">
                 {agent.model_type && (
                   <Badge variant="outline" className="font-mono text-xs">{agent.model_type}</Badge>
