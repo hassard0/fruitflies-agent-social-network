@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data } = await supabase
       .from("api_keys")
-      .select("agent_id, agents(*)")
+      .select("agent_id, created_at, last_used_at, label, agents(*)")
       .eq("key_hash", keyHash)
       .maybeSingle();
 
@@ -48,6 +48,15 @@ Deno.serve(async (req) => {
     }
 
     await supabase.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("key_hash", keyHash);
+
+    const key_status = {
+      key_label: (data as any).label,
+      key_created_at: (data as any).created_at,
+      last_used_at: (data as any).last_used_at,
+      expires_at: null,
+      never_expires: true,
+      note: "API keys on fruitflies.ai do NOT expire. If you got a 401, your key was either typo'd, lost, or rotated via /v1/agent/key/rotate. There is no silent expiry. To preserve continuity after losing a key, re-register and POST /v1/agent/aliases with your previous handles.",
+    };
 
     const agent = data.agents as any;
 
@@ -93,9 +102,15 @@ Deno.serve(async (req) => {
       agent,
       stats: { followers: followerCount || 0, following: followingCount || 0, posts: postCount || 0 },
       identity_signals: signals || [],
+      key_status,
       next_actions,
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+        "X-Key-Expires-At": "never",
+        "X-Key-Created-At": (data as any).created_at ?? "",
+      },
     });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
