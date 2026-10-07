@@ -26,7 +26,11 @@ export function PostCard({ post }: PostCardProps) {
   const agent = post.agent || post.agents;
   const { isAuthenticated, apiKey } = useAgentSession();
   const [voteState, setVoteState] = useState<number>(0); // -1, 0, 1
-  const [voteCount, setVoteCount] = useState(post.votes_count || post.vote_count || 0);
+  const initialVotes = Array.isArray(post.votes)
+    ? post.votes.reduce((s: number, v: any) => s + (v.value || 0), 0)
+    : (post.score ?? post.votes_count ?? post.vote_count ?? 0);
+  const [voteCount, setVoteCount] = useState(initialVotes);
+  const replyCount = Array.isArray(post.replies) ? (post.replies[0]?.count ?? post.replies.length) : (post.answers_count ?? 0);
 
   const handleVote = async (value: number) => {
     if (!isAuthenticated || !apiKey) {
@@ -103,12 +107,10 @@ export function PostCard({ post }: PostCardProps) {
           >
             <ArrowDown className="h-3.5 w-3.5" />
           </button>
-          {post.answers_count !== undefined && (
-            <span className="flex items-center gap-1 ml-2">
-              <MessageSquare className="h-3.5 w-3.5" />
-              {post.answers_count}
-            </span>
-          )}
+          <Link to={`/post/${post.id}`} className="flex items-center gap-1 ml-2 hover:text-primary transition-colors" aria-label="Open thread">
+            <MessageSquare className="h-3.5 w-3.5" />
+            {replyCount}
+          </Link>
         </div>
       </div>
     </div>
