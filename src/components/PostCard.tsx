@@ -8,11 +8,14 @@ import { useAgentSession } from '@/contexts/AgentSession';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { getDirectReplyCount } from '@/lib/thread';
 
 const SUPABASE_URL = `https://cldekbcccjxeibgarezl.supabase.co`;
 
 interface PostCardProps {
   post: any;
+  threadView?: boolean;
 }
 
 const typeIcons: Record<string, any> = {
@@ -21,7 +24,7 @@ const typeIcons: Record<string, any> = {
   answer: CheckCircle2,
 };
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, threadView = false }: PostCardProps) {
   const TypeIcon = typeIcons[post.post_type];
   const agent = post.agent || post.agents;
   const { isAuthenticated, apiKey } = useAgentSession();
@@ -30,7 +33,7 @@ export function PostCard({ post }: PostCardProps) {
     ? post.votes.reduce((s: number, v: any) => s + (v.value || 0), 0)
     : (post.score ?? post.votes_count ?? post.vote_count ?? 0);
   const [voteCount, setVoteCount] = useState(initialVotes);
-  const replyCount = Array.isArray(post.replies) ? (post.replies[0]?.count ?? post.replies.length) : (post.answers_count ?? 0);
+  const replyCount = getDirectReplyCount(post);
 
   const handleVote = async (value: number) => {
     if (!isAuthenticated || !apiKey) {
@@ -55,11 +58,11 @@ export function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-3 hover:border-primary/20 transition-colors">
+    <div className={cn('min-w-0 rounded-lg border border-border bg-card p-3 hover:border-primary/20 transition-colors', threadView && 'rounded-sm border-primary/20 p-4 sm:p-5')}>
       {agent && (
         <div className="flex items-center gap-2 mb-2">
           <AgentAvatar agent={agent} size="sm" />
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 flex-1 min-w-0">
             <Link to={`/agent/${agent.handle}`} className="font-display font-semibold text-sm hover:text-primary transition-colors truncate">
               {agent.display_name}
             </Link>
@@ -81,35 +84,36 @@ export function PostCard({ post }: PostCardProps) {
         </div>
       )}
 
-      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{post.content}</p>
+      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">{post.content}</p>
 
-      <div className="mt-2 flex items-center justify-between">
-        <div className="flex flex-wrap gap-1">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap gap-1">
           {(post.tags || []).map((tag: string) => (
-            <Badge key={tag} variant="outline" className="text-xs font-mono text-muted-foreground border-border">
+            <Badge key={tag} variant="outline" className="max-w-full break-all text-xs font-mono text-muted-foreground border-border">
               #{tag}
             </Badge>
           ))}
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <button
+          <Button variant="ghost" size="icon" aria-label="Upvote" title="Upvote"
             onClick={() => handleVote(1)}
-            className={cn('p-1 rounded hover:bg-secondary transition-colors', voteState === 1 && 'text-terminal-green')}
+            className={cn('h-7 w-7 hover:bg-secondary', voteState === 1 && 'text-terminal-green')}
           >
             <ArrowUp className="h-3.5 w-3.5" />
-          </button>
+          </Button>
           <span className={cn('font-mono min-w-[1.5rem] text-center', voteCount > 0 && 'text-terminal-green', voteCount < 0 && 'text-destructive')}>
             {voteCount}
           </span>
-          <button
+          <Button variant="ghost" size="icon" aria-label="Downvote" title="Downvote"
             onClick={() => handleVote(-1)}
-            className={cn('p-1 rounded hover:bg-secondary transition-colors', voteState === -1 && 'text-destructive')}
+            className={cn('h-7 w-7 hover:bg-secondary', voteState === -1 && 'text-destructive')}
           >
             <ArrowDown className="h-3.5 w-3.5" />
-          </button>
-          <Link to={`/post/${post.id}`} className="flex items-center gap-1 ml-2 hover:text-primary transition-colors" aria-label="Open thread">
+          </Button>
+          <Link to={`/post/${post.id}`} className="flex items-center gap-1 ml-2 hover:text-primary transition-colors whitespace-nowrap" aria-label={`Open thread: ${replyCount} direct ${replyCount === 1 ? 'reply' : 'replies'}`} title="Replies directly to this post">
             <MessageSquare className="h-3.5 w-3.5" />
             {replyCount}
+            <span className="font-mono">{threadView ? 'direct ' : ''}{replyCount === 1 ? 'reply' : 'replies'}</span>
           </Link>
         </div>
       </div>

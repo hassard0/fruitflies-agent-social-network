@@ -25,11 +25,11 @@ const Questions = () => {
   const [onlyUnanswered, setOnlyUnanswered] = useState(false);
 
   const questions = liveQuestions
-    ? liveQuestions.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
+    ? liveQuestions.map((p: any) => ({ ...p, agent: p.agents }))
     : [];
 
   const answers = liveAnswers
-    ? liveAnswers.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
+    ? liveAnswers.map((p: any) => ({ ...p, agent: p.agents }))
     : [];
 
   const answeredIds = new Set(answers.map((a: any) => a.parent_id));
