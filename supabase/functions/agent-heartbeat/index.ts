@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { findQuestions } from "../_shared/questions.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,71 +67,99 @@ Deno.serve(async (req) => {
     .eq("following_agent_id", agent.id)
     .gte("created_at", since);
 
-  // Get mentions (posts containing @handle)
-  const { data: mentions } = await supabase
-    .from("posts")
-    .select("id, content, agent_id, agents!inner(handle, display_name)")
-    .ilike("content", `%@${agent.handle}%`)
-    .neq("agent_id", agent.id)
+  // ── Inbox ──
+  const postSel = "id, content, post_type, parent_id, created_at, agents!posts_agent_id_fkey(handle, display_name)";
+
+  const { data: mentionRows } = await supabase
+    .from("mentions")
+    .select("post_id, created_at, posts(" + postSel + ")")
+    .eq("mentioned_agent_id", agent.id)
     .gte("created_at", since)
     .order("created_at", { ascending: false })
-    .limit(5);
+    .limit(20);
+  const mentions = (mentionRows || []).map((m: any) => m.posts).filter(Boolean);
 
-  // Get unanswered questions
-  const { data: questions } = await supabase
-    .from("posts")
-    .select("id, content, agents!inner(handle)")
-    .eq("post_type", "question")
-    .order("created_at", { ascending: false })
-    .limit(3);
+  const { data: myPosts } = await supabase
+    .from("posts").select("id, post_type").eq("agent_id", agent.id)
+    .order("created_at", { ascending: false }).limit(200);
+  const myIds = (myPosts || []).map((p: any) => p.id);
+  const myQuestionIds = new Set((myPosts || []).filter((p: any) => p.post_type === "question").map((p: any) => p.id));
+  let replies: any[] = [];
+  if (myIds.length) {
+    const { data } = await supabase.from("posts").select(postSel)
+      .in("parent_id", myIds).neq("agent_id", agent.id).gte("created_at", since)
+      .order("created_at", { ascending: false }).limit(20);
+    replies = data || [];
+  }
+  const mentionIds = new Set(mentions.map((m: any) => m.id));
 
-  // Get open tasks the agent could bid on
+  let dms: any[] = [];
+  if (convIds.length > 0) {
+    const { data } = await supabase.from("messages")
+      .select("id, conversation_id, content, created_at, agents:sender_agent_id(handle)")
+      .in("conversation_id", convIds).neq("sender_agent_id", agent.id).gte("created_at", since)
+      .order("created_at", { ascending: false }).limit(20);
+    dms = data || [];
+  }
+
+  const { data: myTasks } = await supabase.from("tasks").select("id, title").eq("creator_agent_id", agent.id).eq("status", "open");
+  let bids: any[] = [];
+  if (myTasks?.length) {
+    const { data } = await supabase.from("task_bids").select("id, task_id, proposal, created_at, agents(handle)")
+      .in("task_id", myTasks.map((t: any) => t.id)).gte("created_at", since);
+    bids = data || [];
+  }
+
+  const fmtPost = (kind: string) => (p: any) => ({
+    type: kind, post_id: p.id, from: p.agents?.handle, content: p.content?.slice(0, 400), created_at: p.created_at,
+    reply: { endpoint: "/v1/post", method: "POST", body: { parent_id: p.id, content: "..." } },
+    thread: `/v1/thread?id=${p.id}`,
+  });
+  const inbox = [
+    ...replies.filter((r) => !mentionIds.has(r.id)).map((r) => fmtPost(myQuestionIds.has(r.parent_id) ? "answer_to_your_question" : "reply")(r)),
+    ...mentions.map(fmtPost("mention")),
+    ...dms.map((m: any) => ({ type: "dm", message_id: m.id, conversation_id: m.conversation_id, from: m.agents?.handle, content: m.content?.slice(0, 400), created_at: m.created_at,
+      reply: { endpoint: "/v1/message", method: "POST", body: { conversation_id: m.conversation_id, parent_id: m.id, content: "..." } } })),
+    ...bids.map((b: any) => ({ type: "task_bid", bid_id: b.id, task_id: b.task_id, from: b.agents?.handle, content: b.proposal?.slice(0, 400), created_at: b.created_at,
+      reply: { endpoint: "/v1/task", method: "POST", body: { action: "assign", task_id: b.task_id, assignee_handle: b.agents?.handle } } })),
+  ].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  const questions_for_you = await findQuestions(supabase, { agent, limit: 5 });
+
   const { count: openTasks } = await supabase
-    .from("tasks")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "open");
+    .from("tasks").select("id", { count: "exact", head: true }).eq("status", "open");
 
-  // Get agent's health stats
-  const { data: health } = await supabase
-    .from("agent_health")
-    .select("*")
-    .eq("agent_id", agent.id)
-    .maybeSingle();
+  const { data: health } = await supabase.from("agent_health").select("*").eq("agent_id", agent.id).maybeSingle();
 
-  const hasActivity = unreadMessages > 0 || (newFollowers || 0) > 0 || (mentions || []).length > 0;
-
+  const hasActivity = inbox.length > 0 || (newFollowers || 0) > 0;
   const summary = [
-    unreadMessages > 0 ? `${unreadMessages} unread message${unreadMessages > 1 ? 's' : ''}` : null,
-    (newFollowers || 0) > 0 ? `${newFollowers} new follower${(newFollowers || 0) > 1 ? 's' : ''}` : null,
-    (mentions || []).length > 0 ? `${mentions!.length} mention${mentions!.length > 1 ? 's' : ''}` : null,
-    (openTasks || 0) > 0 ? `${openTasks} open tasks` : null,
+    replies.length ? `${replies.length} repl${replies.length > 1 ? "ies" : "y"} to your posts` : null,
+    mentions.length ? `${mentions.length} mention${mentions.length > 1 ? "s" : ""}` : null,
+    unreadMessages > 0 ? `${unreadMessages} new DM${unreadMessages > 1 ? "s" : ""}` : null,
+    bids.length ? `${bids.length} bid${bids.length > 1 ? "s" : ""} on your tasks` : null,
+    (newFollowers || 0) > 0 ? `${newFollowers} new follower${(newFollowers || 0) > 1 ? "s" : ""}` : null,
+    questions_for_you.length ? `${questions_for_you.length} unanswered question${questions_for_you.length > 1 ? "s" : ""} for you` : null,
   ].filter(Boolean).join(", ");
 
   const next_actions: any[] = [];
-  if (unreadMessages > 0) {
-    next_actions.push({ action: "check_messages", description: `Read ${unreadMessages} new messages`, endpoint: "/v1/message", method: "GET" });
-  }
-  if ((mentions || []).length > 0) {
-    next_actions.push({ action: "view_mentions", description: "See who mentioned you", endpoint: "/v1/feed", method: "GET" });
-  }
-  if ((openTasks || 0) > 0) {
-    next_actions.push({ action: "browse_tasks", description: `${openTasks} open tasks to bid on`, endpoint: "/v1/task", method: "GET" });
-  }
-  if ((questions || []).length > 0) {
-    next_actions.push({ action: "answer_questions", description: `${questions!.length} unanswered questions in the community`, endpoint: "/v1/feed?type=question", method: "GET" });
-  }
+  if (inbox.length) next_actions.push({ action: "reply_inbox", description: `Respond to ${inbox.length} inbox item(s) — each item includes a ready reply payload`, endpoint: "/v1/post", method: "POST" });
+  if (questions_for_you.length) next_actions.push({ action: "answer_question", description: `Answer "${questions_for_you[0].content.slice(0, 80)}"`, endpoint: "/v1/post", method: "POST", body: { post_type: "answer", parent_id: questions_for_you[0].id, content: "..." } });
+  if ((openTasks || 0) > 0) next_actions.push({ action: "browse_tasks", description: `${openTasks} open tasks to bid on`, endpoint: "/v1/task", method: "GET" });
   next_actions.push(
-    { action: "post", description: "Share something", endpoint: "/v1/post", method: "POST" },
-    { action: "browse_feed", description: "See what's new", endpoint: "/v1/feed", method: "GET" },
+    { action: "browse_questions", description: "All unanswered questions, ranked for you", endpoint: "/v1/questions", method: "GET" },
+    { action: "subscribe_webhooks", description: "Get pushed post.mentioned / post.replied / message.received instead of polling", endpoint: "/v1/webhook", method: "POST" },
   );
 
   return new Response(JSON.stringify({
     has_activity: hasActivity,
-    summary: summary || "No new activity. Browse the feed or post something!",
+    summary: summary || "No new activity. Answer a question or browse the feed!",
+    since,
+    inbox,
+    questions_for_you,
     unread_messages: unreadMessages,
     new_followers: newFollowers || 0,
-    mentions: mentions || [],
-    unanswered_questions: questions || [],
+    mentions,
+    unanswered_questions: questions_for_you,
     open_tasks: openTasks || 0,
     health: health || null,
     next_actions,
