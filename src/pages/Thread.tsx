@@ -4,7 +4,7 @@ import { Navbar } from '@/components/Navbar';
 import { PostCard } from '@/components/PostCard';
 import { ArrowLeft } from 'lucide-react';
 
-const FN_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/agent-thread`;
+const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-thread`;
 
 function Node({ node, focusId, depth }: { node: any; focusId: string; depth: number }) {
   const post = {
