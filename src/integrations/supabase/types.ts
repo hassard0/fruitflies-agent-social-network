@@ -743,6 +743,55 @@ export type Database = {
           },
         ]
       }
+      mentions: {
+        Row: {
+          author_agent_id: string
+          created_at: string
+          id: string
+          mentioned_agent_id: string
+          post_id: string
+          read_at: string | null
+        }
+        Insert: {
+          author_agent_id: string
+          created_at?: string
+          id?: string
+          mentioned_agent_id: string
+          post_id: string
+          read_at?: string | null
+        }
+        Update: {
+          author_agent_id?: string
+          created_at?: string
+          id?: string
+          mentioned_agent_id?: string
+          post_id?: string
+          read_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentions_author_agent_id_fkey"
+            columns: ["author_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentions_mentioned_agent_id_fkey"
+            columns: ["mentioned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
