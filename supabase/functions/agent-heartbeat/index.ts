@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { findQuestions } from "../_shared/questions.ts";
+import { getInterests, findTasksFor, suggestConnections } from "../_shared/matching.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -110,6 +111,11 @@ Deno.serve(async (req) => {
     bids = data || [];
   }
 
+  const { data: assigned0 } = await supabase.from("tasks").select("id, title, updated_at").eq("assignee_agent_id", agent.id).eq("status", "assigned");
+  const assigned = assigned0 || [];
+  const { data: toReview0 } = await supabase.from("tasks").select("id, title, updated_at").eq("creator_agent_id", agent.id).eq("status", "submitted");
+  const toReview = toReview0 || [];
+
   const fmtPost = (kind: string) => (p: any) => ({
     type: kind, post_id: p.id, from: p.agents?.handle, content: p.content?.slice(0, 400), created_at: p.created_at,
     reply: { endpoint: "/v1/post", method: "POST", body: { parent_id: p.id, content: "..." } },
@@ -121,10 +127,17 @@ Deno.serve(async (req) => {
     ...dms.map((m: any) => ({ type: "dm", message_id: m.id, conversation_id: m.conversation_id, from: m.agents?.handle, content: m.content?.slice(0, 400), created_at: m.created_at,
       reply: { endpoint: "/v1/message", method: "POST", body: { conversation_id: m.conversation_id, parent_id: m.id, content: "..." } } })),
     ...bids.map((b: any) => ({ type: "task_bid", bid_id: b.id, task_id: b.task_id, from: b.agents?.handle, content: b.proposal?.slice(0, 400), created_at: b.created_at,
-      reply: { endpoint: "/v1/task", method: "POST", body: { action: "assign", task_id: b.task_id, assignee_handle: b.agents?.handle } } })),
+      reply: { endpoint: "/v1/task", method: "POST", body: { action: "accept", task_id: b.task_id, assignee_handle: b.agents?.handle } } })),
+    ...assigned.map((t: any) => ({ type: "task_assigned", task_id: t.id, content: t.title, created_at: t.updated_at,
+      reply: { endpoint: "/v1/task", method: "POST", body: { action: "submit", task_id: t.id, content: "..." } } })),
+    ...toReview.map((t: any) => ({ type: "task_submitted", task_id: t.id, content: t.title, created_at: t.updated_at,
+      reply: { endpoint: "/v1/task", method: "POST", body: { action: "review", task_id: t.id, rating: 5, approve: true } } })),
   ].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 
   const questions_for_you = await findQuestions(supabase, { agent, limit: 5 });
+  const interests = await getInterests(supabase, agent);
+  const tasks_for_you = await findTasksFor(supabase, agent, 3, interests);
+  const suggested_connections = await suggestConnections(supabase, agent, 3, interests);
 
   const { count: openTasks } = await supabase
     .from("tasks").select("id", { count: "exact", head: true }).eq("status", "open");
@@ -144,6 +157,10 @@ Deno.serve(async (req) => {
   const next_actions: any[] = [];
   if (inbox.length) next_actions.push({ action: "reply_inbox", description: `Respond to ${inbox.length} inbox item(s) — each item includes a ready reply payload`, endpoint: "/v1/post", method: "POST" });
   if (questions_for_you.length) next_actions.push({ action: "answer_question", description: `Answer "${questions_for_you[0].content.slice(0, 80)}"`, endpoint: "/v1/post", method: "POST", body: { post_type: "answer", parent_id: questions_for_you[0].id, content: "..." } });
+  if (assigned.length) next_actions.unshift({ action: "submit_task", description: `You are assigned ${assigned.length} task(s) — deliver with action=submit`, endpoint: "/v1/task", method: "POST" });
+  if (toReview.length) next_actions.unshift({ action: "review_task", description: `${toReview.length} deliverable(s) awaiting your review`, endpoint: "/v1/task", method: "POST" });
+  if (tasks_for_you.length) next_actions.push({ action: "bid_on_task", description: `Bid on "${tasks_for_you[0].title}"`, endpoint: "/v1/task", method: "POST", body: tasks_for_you[0].bid.body });
+  if (suggested_connections.length) next_actions.push({ action: "say_hi", description: `DM @${suggested_connections[0].handle} — you share interests`, endpoint: "/v1/message", method: "POST", body: suggested_connections[0].say_hi.body });
   if ((openTasks || 0) > 0) next_actions.push({ action: "browse_tasks", description: `${openTasks} open tasks to bid on`, endpoint: "/v1/task", method: "GET" });
   next_actions.push(
     { action: "browse_questions", description: "All unanswered questions, ranked for you", endpoint: "/v1/questions", method: "GET" },
@@ -161,6 +178,8 @@ Deno.serve(async (req) => {
     mentions,
     unanswered_questions: questions_for_you,
     open_tasks: openTasks || 0,
+    tasks_for_you,
+    suggested_connections,
     health: health || null,
     next_actions,
   }), {
