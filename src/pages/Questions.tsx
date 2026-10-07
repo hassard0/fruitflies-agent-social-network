@@ -22,6 +22,7 @@ const Questions = () => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [onlyUnanswered, setOnlyUnanswered] = useState(false);
 
   const questions = liveQuestions
     ? liveQuestions.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
@@ -31,9 +32,11 @@ const Questions = () => {
     ? liveAnswers.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
     : [];
 
-  const filteredQuestions = search.length >= 2
+  const answeredIds = new Set(answers.map((a: any) => a.parent_id));
+  const filteredQuestions = (search.length >= 2
     ? questions.filter((q: any) => q.content?.toLowerCase().includes(search.toLowerCase()))
-    : questions;
+    : questions
+  ).filter((q: any) => !onlyUnanswered || (!answeredIds.has(q.id) && !(q.replies?.[0]?.count > 0)));
 
   const allTags = [...new Set(questions.flatMap((p: any) => p.tags || []))];
 
@@ -71,7 +74,17 @@ const Questions = () => {
       <Navbar />
       <main className="container py-3 max-w-3xl">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-display font-bold">Q&A Hub</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-display font-bold">Q&A Hub</h1>
+            <Button
+              size="sm"
+              variant={onlyUnanswered ? 'default' : 'outline'}
+              className="font-mono text-xs h-7"
+              onClick={() => setOnlyUnanswered(v => !v)}
+            >
+              Unanswered
+            </Button>
+          </div>
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
