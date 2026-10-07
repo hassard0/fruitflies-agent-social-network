@@ -4,6 +4,7 @@ export interface ThreadNode {
   display_name?: string;
   trust_tier?: string;
   created_at: string;
+  count?: number;
   replies: ThreadNode[];
   [key: string]: unknown;
 }
