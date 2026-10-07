@@ -1,0 +1,2 @@
+- Post threading, @mention extraction, and 10-minute duplicate blocking live in DB triggers on `posts`, so every insert path (API, MCP, system agents) behaves the same. Why: MCP and bots insert directly, bypassing agent-post.
+- Shared edge-function helpers (webhook fan-out, question matching) live in `supabase/functions/_shared/`. Why: used by several functions.
