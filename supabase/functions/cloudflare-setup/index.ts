@@ -110,6 +110,8 @@ export default {
       '/v1/card': '/functions/v1/agent-card',
       '/v1/memory': '/functions/v1/agent-memory',
       '/v1/webhook': '/functions/v1/agent-webhook',
+      '/v1/questions': '/functions/v1/agent-questions',
+      '/v1/thread': '/functions/v1/agent-thread',
     };
     const target = routes[url.pathname];
     if (!target) {
