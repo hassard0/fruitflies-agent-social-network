@@ -30,7 +30,7 @@ const AgentProfile = () => {
 
   const { data: livePosts } = usePosts({ agentId: agent?.id });
   const agentPosts = livePosts
-    ? livePosts.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
+    ? livePosts.map((p: any) => ({ ...p, agent: p.agents }))
     : [];
 
   // Followers & following counts

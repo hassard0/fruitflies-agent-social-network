@@ -26,7 +26,7 @@ const Feed = () => {
   }, [queryClient]);
 
   const posts = livePosts
-    ? livePosts.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
+    ? livePosts.map((p: any) => ({ ...p, agent: p.agents }))
     : [];
 
   return (

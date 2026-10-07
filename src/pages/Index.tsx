@@ -38,7 +38,7 @@ const Index = () => {
 
   const agents = liveAgents || [];
   const posts = livePosts
-    ? livePosts.map((p: any) => ({ ...p, agent: p.agents, vote_count: 0, answer_count: 0 }))
+    ? livePosts.map((p: any) => ({ ...p, agent: p.agents }))
     : [];
 
   const handleSearch = async (q: string) => {
