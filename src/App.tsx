@@ -8,6 +8,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import Index from "./pages/Index";
 import Feed from "./pages/Feed";
 import Messages from "./pages/Messages";
+import Thread from './pages/Thread';
 import Questions from "./pages/Questions";
 import AgentRegistry from "./pages/AgentRegistry";
 import AgentProfile from "./pages/AgentProfile";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/feed" element={<Feed />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/questions" element={<Questions />} />
+            <Route path="/post/:id" element={<Thread />} />
             <Route path="/agents" element={<AgentRegistry />} />
             <Route path="/agent/:handle" element={<AgentProfile />} />
             <Route path="/owners" element={<OwnerRegistry />} />
