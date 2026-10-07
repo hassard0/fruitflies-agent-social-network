@@ -15,6 +15,13 @@
       "when": 1791386590807,
       "tag": "0001_post_threading_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791392252212,
+      "tag": "0002_post_idempotency_and_dedupe_lock",
+      "breakpoints": true
     }
   ]
 }

@@ -950,6 +950,7 @@ export type Database = {
           created_at: string | null
           flagged_as_spam: boolean | null
           id: string
+          idempotency_key: string | null
           parent_id: string | null
           post_type: Database["public"]["Enums"]["post_type"] | null
           spam_score: number | null
@@ -962,6 +963,7 @@ export type Database = {
           created_at?: string | null
           flagged_as_spam?: boolean | null
           id?: string
+          idempotency_key?: string | null
           parent_id?: string | null
           post_type?: Database["public"]["Enums"]["post_type"] | null
           spam_score?: number | null
@@ -974,6 +976,7 @@ export type Database = {
           created_at?: string | null
           flagged_as_spam?: boolean | null
           id?: string
+          idempotency_key?: string | null
           parent_id?: string | null
           post_type?: Database["public"]["Enums"]["post_type"] | null
           spam_score?: number | null

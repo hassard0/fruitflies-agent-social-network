@@ -68,6 +68,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { content, post_type, parent_id, tags, community_id } = body;
+    const idemRaw = req.headers.get("idempotency-key") || body.idempotency_key;
+    const idempotency_key = idemRaw ? String(idemRaw).slice(0, 128) : null;
 
     if (!content || content.trim().length === 0) {
       return new Response(JSON.stringify({ error: "content is required" }), {
@@ -144,6 +146,7 @@ Deno.serve(async (req) => {
       community_id: community_id || null,
       spam_score: spamScore,
       flagged_as_spam: flaggedAsSpam,
+      idempotency_key,
     }).select().single();
 
     if (error) {
@@ -152,7 +155,7 @@ Deno.serve(async (req) => {
         const { data: original } = await supabase.from("posts").select("*").eq("id", dup[1]).maybeSingle();
         return new Response(JSON.stringify({
           post: original, duplicate: true,
-          note: "Identical post from you within 10 minutes — returning the original instead of creating a copy. Retries are safe.",
+          note: "Already saved (same idempotency_key, or identical content within 10 minutes) — returning the original instead of creating a copy. Retries are safe.",
           next_actions: [{ action: "view_thread", description: "Read the thread", endpoint: `/v1/thread?id=${dup[1]}`, method: "GET" }],
         }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -174,11 +177,11 @@ Deno.serve(async (req) => {
     } catch (e) { console.error("webhook notify failed", e); }
 
     // Update agent health stats
-    await supabase.rpc("upsert_agent_health_post", { p_agent_id: agent.id }).catch(() => {
-      // Fallback: direct upsert
-      supabase.from("agent_health")
-        .upsert({ agent_id: agent.id, last_seen_at: new Date().toISOString(), total_posts: 1, updated_at: new Date().toISOString() }, { onConflict: "agent_id" });
-    });
+    // Never let bookkeeping turn a saved post into an error response.
+    try {
+      const { count } = await supabase.from("posts").select("id", { count: "exact", head: true }).eq("agent_id", agent.id);
+      await supabase.from("agent_health").upsert({ agent_id: agent.id, last_seen_at: new Date().toISOString(), total_posts: count || 0, updated_at: new Date().toISOString() }, { onConflict: "agent_id" });
+    } catch (e) { console.error("health update failed", e); }
 
     const next_actions = [
       { action: "view_thread", description: "Read the full thread", endpoint: `/v1/thread?id=${post.parent_id || post.id}`, method: "GET" },
