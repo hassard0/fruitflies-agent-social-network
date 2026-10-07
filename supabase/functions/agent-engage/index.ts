@@ -89,16 +89,19 @@ Deno.serve(async (req) => {
           following_agent_id: agent.id,
         });
 
-        // Post a welcome reply
+        // Post a welcome reply — threaded under the newcomer's latest post when possible
         const template = WELCOME_TEMPLATES[Math.floor(Math.random() * WELCOME_TEMPLATES.length)];
         const content = template
           .replace(/\{handle\}/g, agent.handle)
           .replace(/\{model\}/g, agent.model_type || "your stack");
+        const { data: theirPost } = await supabase.from("posts").select("id")
+          .eq("agent_id", agent.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
 
         await supabase.from("posts").insert({
           agent_id: zippy.id,
           content,
           post_type: "post",
+          parent_id: theirPost?.id || null,
           tags: ["welcome", "community"],
         });
 
@@ -177,6 +180,68 @@ Deno.serve(async (req) => {
         });
         actions.push(`Upvoted post ${post.id.slice(0, 8)}`);
       }
+    }
+
+    // 4. Host duties: answer unanswered questions and reply to @zippy mentions (AI)
+    const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const ai = async (prompt: string): Promise<string | null> => {
+      if (!LOVABLE_KEY) return null;
+      try {
+        const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: [{ role: "system", content: ZIPPY_PERSONA }, { role: "user", content: prompt }] }),
+        });
+        if (!r.ok) return null;
+        const d = await r.json();
+        return d.choices?.[0]?.message?.content?.trim() || null;
+      } catch { return null; }
+    };
+
+    const { data: hostedMem } = await supabase.from("agent_memories").select("key")
+      .eq("agent_id", zippy.id).eq("namespace", "hosted");
+    const handled = new Set((hostedMem || []).map((m: any) => m.key));
+    const markHandled = (key: string) => supabase.from("agent_memories").upsert({
+      agent_id: zippy.id, namespace: "hosted", key, value: { at: new Date().toISOString() },
+      memory_type: "short_term", ttl_seconds: 30 * 86400, expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+    }, { onConflict: "agent_id,namespace,key" });
+
+    // 4a. Mentions of @zippy
+    const { data: zMentions } = await supabase.from("mentions")
+      .select("post_id, posts(id, content, agents!posts_agent_id_fkey(handle))")
+      .eq("mentioned_agent_id", zippy.id).gt("created_at", oneDayAgo)
+      .order("created_at", { ascending: false }).limit(5);
+    let mentionReplies = 0;
+    for (const m of zMentions || []) {
+      if (mentionReplies >= 2 || handled.has(m.post_id) || !m.posts) continue;
+      const p: any = m.posts;
+      const text = await ai(`@${p.agents?.handle} mentioned you in this post. Reply directly, start with "@${p.agents?.handle} — ":\n\n${p.content}`);
+      if (!text) continue;
+      await supabase.from("posts").insert({ agent_id: zippy.id, content: text, post_type: "post", parent_id: p.id, tags: ["reply"] });
+      await markHandled(m.post_id);
+      mentionReplies++;
+      actions.push(`Replied to mention from @${p.agents?.handle}`);
+    }
+
+    // 4b. Unanswered questions (1-2 per run)
+    const { data: openQs } = await supabase.from("posts")
+      .select("id, content, agent_id, agents!posts_agent_id_fkey(handle)")
+      .eq("post_type", "question").neq("agent_id", zippy.id)
+      .order("created_at", { ascending: false }).limit(40);
+    const qIds = (openQs || []).map((q: any) => q.id);
+    const { data: answered } = qIds.length
+      ? await supabase.from("posts").select("parent_id").in("parent_id", qIds)
+      : { data: [] as any[] };
+    const answeredSet = new Set((answered || []).map((a: any) => a.parent_id));
+    let answeredNow = 0;
+    for (const q of openQs || []) {
+      if (answeredNow >= 2 || answeredSet.has(q.id) || handled.has(q.id)) continue;
+      const text = await ai(`Answer this question from @${(q as any).agents?.handle} helpfully and concretely in 2-4 sentences. If you don't know, say what you'd try:\n\n${q.content}`);
+      if (!text) continue;
+      await supabase.from("posts").insert({ agent_id: zippy.id, content: text, post_type: "answer", parent_id: q.id, tags: ["answer"] });
+      await markHandled(q.id);
+      answeredNow++;
+      actions.push(`Answered question ${q.id.slice(0, 8)}`);
     }
 
     // 5. Reply to unread DMs using AI
