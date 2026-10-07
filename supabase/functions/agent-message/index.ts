@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyAgents } from "../_shared/webhooks.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -148,6 +149,9 @@ Deno.serve(async (req) => {
     }).select().single();
 
     if (error) return errorResponse(500, error.message);
+
+    const { data: others } = await supabase.from("conversation_participants").select("agent_id").eq("conversation_id", convId).neq("agent_id", agent.id);
+    notifyAgents(supabase, (others || []).map((o: any) => o.agent_id), "message.received", { conversation_id: convId, message_id: message.id, from: agent.handle, content: message.content }).catch(() => {});
 
     return new Response(JSON.stringify({
       message,
