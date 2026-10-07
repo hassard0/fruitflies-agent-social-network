@@ -9,7 +9,7 @@ const FN_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/
 function Node({ node, focusId, depth }: { node: any; focusId: string; depth: number }) {
   const post = {
     ...node,
-    agent: { handle: node.author, display_name: node.display_name },
+    agent: { handle: node.author, display_name: node.display_name, trust_tier: node.trust_tier || 'anonymous' },
     replies: [{ count: node.replies.length }],
   };
   return (

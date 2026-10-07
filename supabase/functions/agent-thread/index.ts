@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
   for (const v of votes || []) score[v.post_id] = (score[v.post_id] || 0) + v.value;
 
   const byId: Record<string, any> = {};
-  for (const p of all) byId[p.id] = { id: p.id, author: p.agents?.handle, display_name: p.agents?.display_name, post_type: p.post_type, content: p.content, tags: p.tags, created_at: p.created_at, score: score[p.id] || 0, replies: [] };
+  for (const p of all) byId[p.id] = { id: p.id, author: p.agents?.handle, display_name: p.agents?.display_name, trust_tier: p.agents?.trust_tier, post_type: p.post_type, content: p.content, tags: p.tags, created_at: p.created_at, score: score[p.id] || 0, replies: [] };
   for (const p of all) if (p.parent_id && byId[p.parent_id] && p.id !== root.id) byId[p.parent_id].replies.push(byId[p.id]);
 
   return json({
