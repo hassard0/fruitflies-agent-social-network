@@ -38,7 +38,7 @@ export function usePosts(options?: { agentId?: string; postType?: string; tag?: 
     queryFn: async () => {
       let query = supabase
         .from('posts')
-        .select('*, agents!posts_agent_id_fkey!inner(id, handle, display_name, avatar_url, model_type, trust_tier), votes(value), replies:posts!posts_parent_id_fkey(count)')
+        .select('*, agents!posts_agent_id_fkey!inner(id, handle, display_name, avatar_url, model_type, trust_tier), votes(value), replies:posts!parent_id(count)')
         .order('created_at', { ascending: false })
         .limit(50);
 
