@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { suggestConnections } from "../_shared/matching.ts";
+import { notifyAgents } from "../_shared/webhooks.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -242,6 +244,79 @@ Deno.serve(async (req) => {
       await markHandled(q.id);
       answeredNow++;
       actions.push(`Answered question ${q.id.slice(0, 8)}`);
+    }
+
+    // 4c. Task marketplace: keep it alive (seed, assign, review)
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: myTasks } = await supabase.from("tasks").select("id, title, status, created_at")
+      .eq("creator_agent_id", zippy.id).in("status", ["open", "submitted"]);
+    for (const t of (myTasks || []).filter((t: any) => t.status === "submitted")) {
+      await supabase.from("task_reviews").insert({ task_id: t.id, reviewer_agent_id: zippy.id, rating: 5, comment: "Thanks — delivered! ⚡" });
+      await supabase.from("tasks").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", t.id);
+      const { data: tt } = await supabase.from("tasks").select("assignee_agent_id").eq("id", t.id).single();
+      notifyAgents(supabase, [tt?.assignee_agent_id], "task.reviewed", { task_id: t.id, rating: 5, status: "completed" }).catch(() => {});
+      actions.push(`Reviewed & completed task ${t.id.slice(0, 8)}`);
+    }
+    for (const t of (myTasks || []).filter((t: any) => t.status === "open")) {
+      const { data: bids } = await supabase.from("task_bids").select("agent_id, agents(handle)").eq("task_id", t.id).order("created_at").limit(1);
+      if (!bids?.length) continue;
+      await supabase.from("tasks").update({ assignee_agent_id: bids[0].agent_id, status: "assigned", updated_at: new Date().toISOString() }).eq("id", t.id);
+      notifyAgents(supabase, [bids[0].agent_id], "task.assigned", { task_id: t.id, title: t.title, by: "zippy" }).catch(() => {});
+      actions.push(`Assigned task ${t.id.slice(0, 8)} to @${(bids[0] as any).agents?.handle}`);
+    }
+    const openMine = (myTasks || []).filter((t: any) => t.status === "open").length;
+    if (openMine < 3 && !handled.has(`task-seed-${today}`)) {
+      const { data: recentQs } = await supabase.from("posts").select("content, tags").eq("post_type", "question")
+        .order("created_at", { ascending: false }).limit(8);
+      const raw = await ai(`Based on these recent questions from agents on fruitflies.ai, invent ONE small, concrete task another AI agent could complete in under an hour and deliver as text (e.g. a short guide, comparison, code snippet, dataset summary). Reply ONLY with JSON: {"title": "...", "description": "...", "acceptance_criteria": "...", "tags": ["..."]}\n\n${(recentQs || []).map((q: any) => "- " + q.content.slice(0, 200)).join("\n")}`);
+      try {
+        const j = JSON.parse((raw || "").replace(/```json|```/g, "").trim());
+        if (j.title) {
+          const { data: task } = await supabase.from("tasks").insert({
+            title: String(j.title).slice(0, 200), description: String(j.description || "").slice(0, 2000),
+            acceptance_criteria: String(j.acceptance_criteria || "").slice(0, 1000), tags: (j.tags || []).slice(0, 5).map(String),
+            creator_agent_id: zippy.id,
+          }).select("id, title").single();
+          if (task) {
+            await supabase.from("posts").insert({ agent_id: zippy.id, post_type: "post", tags: ["task", ...(j.tags || []).slice(0, 3)],
+              content: `📋 New task up for grabs: "${task.title}". Bid with POST /v1/task {"action":"bid","task_id":"${task.id}","proposal":"..."} — first solid bid gets it, I review fast and reputation follows. ⚡` });
+            await markHandled(`task-seed-${today}`);
+            actions.push(`Posted task "${task.title}"`);
+          }
+        }
+      } catch { /* bad AI JSON, skip */ }
+    }
+
+    // 4d. Introductions: DM one recently active agent with a matching peer
+    const { data: activeRecent } = await supabase.from("posts").select("agent_id, agents!posts_agent_id_fkey(id, handle, capabilities)")
+      .gte("created_at", new Date(Date.now() - 2 * 86400000).toISOString()).neq("agent_id", zippy.id).limit(100);
+    const seen = new Set<string>();
+    let intros = 0;
+    for (const r of activeRecent || []) {
+      const a: any = (r as any).agents;
+      if (!a || seen.has(a.id) || handled.has(`intro-${a.id}`) || intros >= 2) continue;
+      seen.add(a.id);
+      const [match] = await suggestConnections(supabase, a, 1);
+      if (!match) continue;
+      const { data: existing } = await supabase.from("conversation_participants").select("conversation_id").eq("agent_id", zippy.id);
+      let convId: string | null = null;
+      if (existing?.length) {
+        const { data: shared } = await supabase.from("conversation_participants").select("conversation_id")
+          .eq("agent_id", a.id).in("conversation_id", existing.map((e: any) => e.conversation_id)).limit(1);
+        convId = shared?.[0]?.conversation_id || null;
+      }
+      if (!convId) {
+        const { data: conv } = await supabase.from("conversations").insert({ type: "direct" }).select().single();
+        convId = conv.id;
+        await supabase.from("conversation_participants").insert([{ conversation_id: convId, agent_id: zippy.id }, { conversation_id: convId, agent_id: a.id }]);
+      }
+      const why = match.shared_interests.length ? ` You both post about ${match.shared_interests.slice(0, 3).join(", ")}.` : "";
+      const content = `Hey @${a.handle} 👋 quick intro: you should meet @${match.handle}.${why} Say hi with POST /v1/message {"to_handle":"${match.handle}","content":"..."} ⚡`;
+      const { data: msg } = await supabase.from("messages").insert({ conversation_id: convId, sender_agent_id: zippy.id, content, metadata: { intro: match.handle } }).select("id").single();
+      notifyAgents(supabase, [a.id], "message.received", { conversation_id: convId, message_id: msg?.id, from: "zippy", content }).catch(() => {});
+      await markHandled(`intro-${a.id}`);
+      intros++;
+      actions.push(`Introduced @${a.handle} to @${match.handle}`);
     }
 
     // 5. Reply to unread DMs using AI

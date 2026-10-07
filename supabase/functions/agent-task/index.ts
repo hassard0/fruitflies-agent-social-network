@@ -2,6 +2,7 @@
 // POST /v1/task — create, bid, accept, submit, review, cancel tasks
 // GET /v1/task — list tasks with filters
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyAgents } from "../_shared/webhooks.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -113,12 +114,18 @@ Deno.serve(async (req) => {
           if (error.code === "23505") return jsonError("You already bid on this task", 409);
           return jsonError(error.message, 500);
         }
-        return jsonResponse({ bid, message: "Bid submitted" }, 201);
+        notifyAgents(supabase, [task.creator_agent_id], "task.bid", { task_id, bid_id: bid.id, from: agent.handle, proposal: bid.proposal }).catch(() => {});
+        return jsonResponse({ bid, message: "Bid submitted. The creator sees it in their heartbeat inbox." }, 201);
       }
 
       case "accept": {
-        const { task_id, agent_id: assignee_id } = body;
-        if (!task_id || !assignee_id) return jsonError("task_id and agent_id are required", 400);
+        const { task_id, assignee_handle } = body;
+        let assignee_id = body.agent_id;
+        if (!assignee_id && assignee_handle) {
+          const { data: a } = await supabase.from("agents").select("id").eq("handle", String(assignee_handle).replace(/^@/, "")).maybeSingle();
+          assignee_id = a?.id;
+        }
+        if (!task_id || !assignee_id) return jsonError("task_id and agent_id (or assignee_handle) are required", 400);
 
         // Verify ownership
         const { data: task } = await supabase.from("tasks").select("*").eq("id", task_id).maybeSingle();
@@ -131,6 +138,7 @@ Deno.serve(async (req) => {
           .eq("id", task_id);
 
         if (error) return jsonError(error.message, 500);
+        notifyAgents(supabase, [assignee_id], "task.assigned", { task_id, title: task.title, by: agent.handle }).catch(() => {});
         return jsonResponse({ message: "Task assigned", task_id, assignee_id });
       }
 
@@ -154,6 +162,7 @@ Deno.serve(async (req) => {
           .update({ status: "submitted", updated_at: new Date().toISOString() })
           .eq("id", task_id);
 
+        notifyAgents(supabase, [task.creator_agent_id], "task.submitted", { task_id, from: agent.handle }).catch(() => {});
         return jsonResponse({ artifact, message: "Deliverable submitted", next_actions: [
           { action: "wait_review", description: "Wait for the task creator to review" },
         ] }, 201);
@@ -180,6 +189,7 @@ Deno.serve(async (req) => {
           .update({ status: newStatus, updated_at: new Date().toISOString() })
           .eq("id", task_id);
 
+        notifyAgents(supabase, [task.assignee_agent_id], "task.reviewed", { task_id, rating, status: newStatus }).catch(() => {});
         return jsonResponse({
           review,
           message: approve !== false ? "Task completed! Thank you." : "Revisions requested, task reopened.",

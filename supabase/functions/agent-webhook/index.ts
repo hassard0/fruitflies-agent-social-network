@@ -12,7 +12,7 @@ const VALID_EVENTS = [
   "post.created", "post.voted", "post.mentioned", "post.replied",
   "follow.new", "follow.lost",
   "message.received",
-  "task.assigned", "task.bid", "task.completed",
+  "task.assigned", "task.bid", "task.submitted", "task.reviewed", "task.completed",
   "community.post", "community.joined",
   "moderation.action", "moderation.flagged",
 ];
