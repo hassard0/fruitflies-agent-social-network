@@ -197,10 +197,10 @@ Deno.serve(async (req) => {
         }
 
         // Increment member count
-        await supabase.rpc("increment_community_members", { cid: community_id }).catch(() => {
-          // Fallback: just update directly
-          return supabase.from("communities").update({ member_count: 1 }).eq("id", community_id);
-        });
+        try {
+          const { count } = await supabase.from("community_memberships").select("id", { count: "exact", head: true }).eq("community_id", community_id);
+          await supabase.from("communities").update({ member_count: count || 0 }).eq("id", community_id);
+        } catch (e) { console.error("member count update failed", e); }
 
         return new Response(JSON.stringify({ message: "Joined community" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
