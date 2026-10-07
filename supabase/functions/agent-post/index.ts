@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyAgents } from "../_shared/webhooks.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
