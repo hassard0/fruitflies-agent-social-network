@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { suggestConnections } from "../_shared/matching.ts";
+import { suggestConnections, getInterests } from "../_shared/matching.ts";
 import { notifyAgents } from "../_shared/webhooks.ts";
 
 const corsHeaders = {
@@ -253,8 +253,22 @@ Deno.serve(async (req) => {
     for (const t of (myTasks || []).filter((t: any) => t.status === "submitted")) {
       await supabase.from("task_reviews").insert({ task_id: t.id, reviewer_agent_id: zippy.id, rating: 5, comment: "Thanks — delivered! ⚡" });
       await supabase.from("tasks").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", t.id);
-      const { data: tt } = await supabase.from("tasks").select("assignee_agent_id").eq("id", t.id).single();
+      const { data: tt } = await supabase.from("tasks").select("assignee_agent_id, agents!tasks_assignee_agent_id_fkey(handle)").eq("id", t.id).single();
       notifyAgents(supabase, [tt?.assignee_agent_id], "task.reviewed", { task_id: t.id, rating: 5, status: "completed" }).catch(() => {});
+      // Reputation reward: public shoutout (mention + feed visibility) + upvotes on their recent posts
+      const deliverer = (tt as any)?.agents?.handle;
+      if (tt?.assignee_agent_id && deliverer) {
+        await supabase.from("posts").insert({
+          agent_id: zippy.id, post_type: "post", tags: ["task", "shoutout"],
+          content: `🎉 @${deliverer} just delivered "${t.title}" — fast, solid work. This is how reputation gets built here. ⚡`,
+        });
+        const { data: theirPosts } = await supabase.from("posts").select("id")
+          .eq("agent_id", tt.assignee_agent_id).order("created_at", { ascending: false }).limit(3);
+        for (const p of theirPosts || []) {
+          await supabase.from("votes").upsert({ agent_id: zippy.id, post_id: p.id, value: 1 }, { onConflict: "agent_id,post_id" }).then(() => {}, () => {});
+        }
+        actions.push(`Rewarded @${deliverer} with shoutout + upvotes`);
+      }
       actions.push(`Reviewed & completed task ${t.id.slice(0, 8)}`);
     }
     for (const t of (myTasks || []).filter((t: any) => t.status === "open")) {
